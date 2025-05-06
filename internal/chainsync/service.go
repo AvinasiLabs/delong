@@ -12,21 +12,23 @@ import (
 )
 
 type ChainsyncService struct {
-	name  string
-	state *ChainsyncServiceState
-}
-
-type ChainsyncServiceState struct {
+	name      string
 	notifier  *ws.Notifier
 	ethCaller *contracts.ContractCaller
 }
 
+type ChainsyncServiceOptions struct {
+	Blockchain   *control.BlockchainDeps
+	Notification *control.NotificationDeps
+}
+
 const SERVICE_NAME = "chainsync-service"
 
-func NewChainsyncService() *ChainsyncService {
+func NewChainsyncService(opts ChainsyncServiceOptions) *ChainsyncService {
 	return &ChainsyncService{
-		name:  SERVICE_NAME,
-		state: &ChainsyncServiceState{},
+		name:      SERVICE_NAME,
+		notifier:  opts.Notification.Notifier,
+		ethCaller: opts.Blockchain.EthCaller,
 	}
 }
 
@@ -34,9 +36,7 @@ func (s *ChainsyncService) Name() string {
 	return s.name
 }
 
-func (s *ChainsyncService) Init(ctx context.Context, gs *control.ServiceState) error {
-	s.state.notifier = gs.Notifier
-	s.state.ethCaller = gs.EthCaller
+func (s *ChainsyncService) Init(ctx context.Context) error {
 	return nil
 }
 
@@ -62,8 +62,8 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 		ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.DataContributionDataRegistered) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewDataContribution(
-				s.state.ethCaller.ContractAddress(contracts.CTRKEY_DATA_CONTRIBUTION),
-				s.state.ethCaller.WsClient(),
+				s.ethCaller.DataContributionCtrtAddr(),
+				s.ethCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -74,19 +74,19 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
 
-			receipt, err := s.state.ethCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.ethCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
 				return
 			}
 			if receipt.Status != 1 {
-				s.state.notifier.PushStatus(txHash, ws.StatusFailed)
+				s.notifier.PushStatus(txHash, ws.StatusFailed)
 				return
 			}
 
 			// TODO: persist cid, dataset, contributor
 
-			s.state.notifier.PushStatus(txHash, ws.StatusConfirmed)
+			s.notifier.PushStatus(txHash, ws.StatusConfirmed)
 		},
 	)
 }

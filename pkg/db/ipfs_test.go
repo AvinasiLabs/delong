@@ -31,7 +31,7 @@ func TestIpfsClient_AddAndGet(t *testing.T) {
 
 	originalData := []byte("This is a test file for IpfsClient unit test.")
 
-	cidStr, err := client.Add(ctx, originalData)
+	cidStr, err := client.Upload(ctx, originalData)
 	if err != nil {
 		t.Fatalf("Failed to add file to IPFS: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestIpfsClient_AddAndGet(t *testing.T) {
 		t.Fatalf("Empty CID returned from Add")
 	}
 
-	retrievedData, err := client.Get(ctx, cidStr)
+	retrievedData, err := client.Download(ctx, cidStr)
 	if err != nil {
 		t.Fatalf("Failed to get file from IPFS: %v", err)
 	}

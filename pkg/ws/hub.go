@@ -14,7 +14,8 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		conns: make(map[string]*websocket.Conn),
+		conns:  make(map[string]*websocket.Conn),
+		buffer: make(map[string]any),
 	}
 }
 

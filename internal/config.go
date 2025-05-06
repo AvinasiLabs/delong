@@ -1,13 +1,10 @@
 package internal
 
 import (
-	"delong/pkg/contracts"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type Config struct {
@@ -15,45 +12,80 @@ type Config struct {
 	EthHttpUrl  string
 	EthWsUrl    string
 	ChainId     int64
-	CtrAddr     map[string]common.Address
+
+	MinioEndpoint  string
+	MinioAccessKey string
+	MinioSecretKey string
+
+	DiagnosticSrvEndpoint string
+
+	MysqlDsn                  string
+	OfficialAccountPrivateKey string
 }
 
-func NewConfig(ipfsApiAddr, ethHttpUrl, ethWsUrl string, chainId int64, dataContributionCtrAddr, algorithmCtrAddr common.Address) *Config {
+func NewConfig(
+	ipfsApiAddr string,
+	ethHttpUrl, ethWsUrl string, chainId int64,
+	minioEndpoint, minioAccessKey, minioSecretKey string,
+	diagnosticSrvEndpoint string,
+	mysqlDsn string,
+	officialAccountPrivateKey string,
+) *Config {
 	return &Config{
-		IpfsApiAddr: ipfsApiAddr,
-		EthHttpUrl:  ethHttpUrl,
-		EthWsUrl:    ethWsUrl,
-		ChainId:     chainId,
-		CtrAddr: map[string]common.Address{
-			contracts.CTRKEY_DATA_CONTRIBUTION: dataContributionCtrAddr,
-			contracts.CTRKEY_ALGORITHM_REVIEW:  algorithmCtrAddr,
-		},
+		IpfsApiAddr:               ipfsApiAddr,
+		EthHttpUrl:                ethHttpUrl,
+		EthWsUrl:                  ethWsUrl,
+		ChainId:                   chainId,
+		MinioEndpoint:             minioEndpoint,
+		MinioAccessKey:            minioAccessKey,
+		MinioSecretKey:            minioSecretKey,
+		DiagnosticSrvEndpoint:     diagnosticSrvEndpoint,
+		MysqlDsn:                  mysqlDsn,
+		OfficialAccountPrivateKey: officialAccountPrivateKey,
 	}
 }
 
 const (
-	ENVKEY_IPFS_ADDR              = "IPFS_ADDR"
-	ENVKEY_CHAIN_ID               = "CHAIN_ID"
-	ENVKEY_ETH_HTTP_URL           = "ETH_HTTP_URL"
-	ENVKEY_ETH_WS_URL             = "ETH_WS_URL"
-	ENVKEY_CONTRIBUTION_CTRT_ADDR = "CONTRIBUTION_CTRT_ADDR"
-	ENVKEY_ALGORITHM_CTRT_ADDR    = "ALGORITHM_CTRT_ADDR"
+	ENVKEY_IPFS_ADDR    = "IPFS_ADDR"
+	ENVKEY_CHAIN_ID     = "CHAIN_ID"
+	ENVKEY_ETH_HTTP_URL = "ETH_HTTP_URL"
+	ENVKEY_ETH_WS_URL   = "ETH_WS_URL"
 
-	// ENVKEY_ENC_KEY_HEX            = "ENC_KEY_HEX"
+	ENVKEY_MINIO_ENDPOINT = "MINIO_ENDPOINT"
+	ENVKEY_MINIO_AK       = "MINIO_AK"
+	ENVKEY_MINIO_SK       = "MINIO_SK"
+
+	ENVKEY_DIAGNOSTIC_SRV_ENDPOINT = "DIAGNOSTIC_SRV_ENDPOINT"
+
+	ENVKEY_MYSQL_DSN = "MYSQL_DSN"
+
+	ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY = "OFFICIAL_ACCOUNT_PRIVATE_KEY"
 )
 
-func NewConfigFromEnv() (*Config, error) {
+func LoadConfigFromEnv() (*Config, error) {
 	ethHttpUrl := os.Getenv(ENVKEY_ETH_HTTP_URL)
 	ipfsApiAddr := os.Getenv(ENVKEY_IPFS_ADDR)
 	ethWsUrl := os.Getenv(ENVKEY_ETH_WS_URL)
 	chainIdStr := os.Getenv(ENVKEY_CHAIN_ID)
-	algorithmCtrtAddr := os.Getenv(ENVKEY_ALGORITHM_CTRT_ADDR)
-	contributionCtrtAddr := os.Getenv(ENVKEY_CONTRIBUTION_CTRT_ADDR)
 	chainId, err := strconv.ParseInt(chainIdStr, 10, 64)
+
+	minioEndpoint := os.Getenv(ENVKEY_MINIO_ENDPOINT)
+	minioAccessKey := os.Getenv(ENVKEY_MINIO_AK)
+	minioSecretKey := os.Getenv(ENVKEY_MINIO_SK)
+	diagnosticSrvEndpoint := os.Getenv(ENVKEY_DIAGNOSTIC_SRV_ENDPOINT)
+	mysqlDsn := os.Getenv(ENVKEY_MYSQL_DSN)
+	officialAccountPk := os.Getenv(ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY)
 	if err != nil {
 		return nil, err
 	}
-	return NewConfig(ipfsApiAddr, ethHttpUrl, ethWsUrl, chainId, common.HexToAddress(contributionCtrtAddr), common.HexToAddress(algorithmCtrtAddr)), nil
+	return NewConfig(
+		ipfsApiAddr,
+		ethHttpUrl, ethWsUrl, chainId,
+		minioEndpoint, minioAccessKey, minioSecretKey,
+		diagnosticSrvEndpoint,
+		mysqlDsn,
+		officialAccountPk,
+	), nil
 }
 
 func (c *Config) String() string {
@@ -64,10 +96,11 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tEthereum RPC URL: %s\n", c.EthHttpUrl))
 	builder.WriteString(fmt.Sprintf("\tEthereum WS URL: %s\n", c.EthWsUrl))
 	builder.WriteString(fmt.Sprintf("\tChain ID: %d\n", c.ChainId))
-	builder.WriteString("\tSmart Contract Addresses:\n")
-	for key, addr := range c.CtrAddr {
-		builder.WriteString(fmt.Sprintf("\t\t- %s: %s\n", key, addr.Hex()))
-	}
-
+	builder.WriteString(fmt.Sprintf("\tMinio Endpoint: %s\n", c.MinioEndpoint))
+	builder.WriteString(fmt.Sprintf("\tMinio Access Key: %s\n", c.MinioAccessKey))
+	builder.WriteString(fmt.Sprintf("\tMinio Secret Key: %s\n", c.MinioSecretKey))
+	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Endpoint: %s\n", c.DiagnosticSrvEndpoint))
+	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
+	builder.WriteString(fmt.Sprintf("\tOfficial Account PK: %s\n", c.OfficialAccountPrivateKey))
 	return builder.String()
 }

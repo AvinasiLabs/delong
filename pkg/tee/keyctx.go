@@ -13,29 +13,23 @@ const (
 	KindEncryptionKey KeyKind = "encryption"
 )
 
-type KeyIdentity struct {
-	kind KeyKind
-	name string
-}
-
 type KeyContext struct {
-	path    *KeyIdentity
+	kind    KeyKind
+	name    string
 	purpose string
 }
 
 func NewKeyContext(kind KeyKind, name, purpose string) *KeyContext {
 	return &KeyContext{
-		path: &KeyIdentity{
-			kind: kind,
-			name: name,
-		},
+		kind:    kind,
+		name:    name,
 		purpose: purpose,
 	}
 }
 
 func (k *KeyContext) Path() string {
-	safeName := strings.ReplaceAll(k.path.name, "/", "_")
-	return path.Join(string(k.path.kind), safeName)
+	safeName := strings.ReplaceAll(k.name, "/", "_")
+	return path.Join(string(k.kind), safeName)
 }
 
 func (k *KeyContext) Purpose() string {
@@ -43,7 +37,7 @@ func (k *KeyContext) Purpose() string {
 }
 
 func (k *KeyContext) Salt() []byte {
-	salt := fmt.Sprintf("%s:%s:%s", k.path.kind, k.path.name, k.purpose)
+	salt := fmt.Sprintf("%s:%s:%s", k.kind, k.name, k.purpose)
 	return []byte(salt)
 }
 
@@ -51,8 +45,8 @@ func (k *KeyContext) Info() []byte {
 	info := fmt.Sprintf(
 		"purpose=%s,kind=%s,name=%s,version=1",
 		k.purpose,
-		k.path.kind,
-		k.path.name,
+		k.kind,
+		k.name,
 	)
 	return []byte(info)
 }

@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"delong/internal/control"
-	"delong/pkg"
+	"delong/internal/types"
+	"delong/pkg/analyzer"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
 	"delong/pkg/tee"
 	"delong/pkg/ws"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -15,6 +18,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ApiService struct {
@@ -24,25 +28,40 @@ type ApiService struct {
 	engine     *gin.Engine
 	httpserver *http.Server
 
-	state *ApiServiceState
+	ipfsStore  *db.IpfsStore
+	minioStore *db.MinioStore
+	mysqlDb    *gorm.DB
+
+	ethCaller *contracts.ContractCaller
+	keyVault  *tee.KeyVault
+
+	notifier *ws.Notifier
+
+	reportAnalyzer *analyzer.ReportAnalyzer
 }
 
-type ApiServiceState struct {
-	ipfsStore *db.IpfsStore
-	ethCaller *contracts.ContractCaller
-	KeyVault  *tee.KeyVault
-	Notifier  *ws.Notifier
+type ApiServiceOptions struct {
+	Addr         string
+	Storage      *control.StorageDeps
+	Blockchain   *control.BlockchainDeps
+	Notification *control.NotificationDeps
+	Analyzer     *control.AnalyzerDeps
 }
 
 const SERVICE_NAME = "api-service"
 
-func NewApiService(addr string, ctrAddr map[string]common.Address) *ApiService {
+func NewApiService(opts ApiServiceOptions) *ApiService {
 	return &ApiService{
-		name:    SERVICE_NAME,
-		addr:    addr,
-		ctrAddr: ctrAddr,
-		engine:  gin.Default(),
-		state:   &ApiServiceState{},
+		name:           SERVICE_NAME,
+		addr:           opts.Addr,
+		engine:         gin.Default(),
+		ipfsStore:      opts.Storage.IpfsStore,
+		minioStore:     opts.Storage.MinioStore,
+		mysqlDb:        opts.Storage.MysqlDb,
+		ethCaller:      opts.Blockchain.EthCaller,
+		keyVault:       opts.Blockchain.KeyVault,
+		notifier:       opts.Notification.Notifier,
+		reportAnalyzer: opts.Analyzer.ReportAnalyzer,
 	}
 }
 
@@ -50,11 +69,7 @@ func (s *ApiService) Name() string {
 	return s.name
 }
 
-func (s *ApiService) Init(ctx context.Context, gs *control.ServiceState) error {
-	s.state.ipfsStore = gs.IpfsStore
-	s.state.ethCaller = gs.EthCaller
-	s.state.KeyVault = gs.KeyVault
-	s.state.Notifier = gs.Notifier
+func (s *ApiService) Init(ctx context.Context) error {
 	s.registerRoutes()
 	return nil
 }
@@ -93,7 +108,7 @@ func (s *ApiService) Stop(ctx context.Context) error {
 }
 
 func (s *ApiService) registerRoutes() {
-	s.engine.GET("/ws", ws.NewHandler(s.state.Notifier.Hub()))
+	s.engine.GET("/ws", ws.NewHandler(s.notifier.Hub()))
 
 	apiGroup := s.engine.Group("/api")
 
@@ -102,69 +117,73 @@ func (s *ApiService) registerRoutes() {
 }
 
 type UploadReportReq struct {
-	UserWallet string `form:"userWallet" binding:"required,ethwallet"`
-	Dataset    string `form:"dataset" binding:"required"`
+	UserWallet string    `form:"userWallet" binding:"required,ethwallet"`
+	Dataset    string    `form:"dataset" binding:"required"`
+	TestTime   time.Time `form:"testTime" binding:"required"`
 }
 
 func (s *ApiService) UploadReport(c *gin.Context) {
 	req := UploadReportReq{}
-	err := c.ShouldBind(&req)
-	if err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		log.Printf("Failed to bind request: %v", err)
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-
 	userWallet := common.HexToAddress(req.UserWallet)
-	dataset := req.Dataset
 
-	fh, err := c.FormFile("file")
+	reportFile, err := s.readFile(c, "file")
 	if err != nil {
-		log.Printf("Failed to get uploaded file: %v", err)
-		c.JSON(400, gin.H{"error": "Uploading file failed"})
-		return
-	}
-
-	f, err := fh.Open()
-	if err != nil {
-		log.Printf("Failed to open uploaded file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Opening file failed"})
-	}
-	defer f.Close()
-
-	fd, err := io.ReadAll(f)
-	if err != nil {
-		log.Printf("Failed to read uploaded file: %v", err)
+		log.Printf("Failed to read file: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Reading file failed"})
 		return
 	}
 
-	aesKc := tee.NewKeyContext(tee.KindEncryptionKey, "upload-report-key", "encrypt user test report")
-	aesKey, err := s.state.KeyVault.DeriveSymmetricKey(c, aesKc, 32)
-
-	combined, err := pkg.EncryptGCM(fd, aesKey)
+	aesKey, err := s.keyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
 	if err != nil {
-		log.Printf("Failed to encrypt file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Encrypting file failed"})
+		log.Printf("Failed to derive symmetric key: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Deriving symmetric key failed"})
 		return
 	}
 
-	cid, err := s.state.ipfsStore.Add(c, combined)
+	cid, err := s.ipfsStore.UploadEncrypted(c, reportFile.data, aesKey)
 	if err != nil {
-		log.Printf("Failed to add file to IPFS: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Adding file to IPFS failed"})
+		log.Printf("Failed to upload encrypted data: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Uploading data failed"})
 		return
 	}
 
-	ethAccKc := tee.NewKeyContext(tee.KindEthAccount, "tee-eth-account", "call as owner")
-	ethAcc, err := s.state.KeyVault.DeriveEthereumAccount(c, ethAccKc)
+	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.filename)
+	err = s.minioStore.UploadBytes(c, "diagnostic", objName, reportFile.data, reportFile.contentType)
 	if err != nil {
-		log.Printf("Failed to derive Ethereum account: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Deriving Ethereum account failed"})
+		log.Printf("Failed to upload file to MinIO: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Uploading file to MinIO failed"})
 		return
 	}
 
-	tx, err := s.state.ethCaller.RegisterData(*ethAcc, userWallet, cid, dataset)
+	result, err := s.reportAnalyzer.Analyze(c, "minio", reportFile.contentType, objName, userWallet.Hex())
+	if err != nil {
+		log.Printf("Failed to analyze report: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Analyzing report failed"})
+		return
+	}
+
+	var raw types.RawReport
+	err = json.Unmarshal(result, &raw)
+	if err != nil {
+		log.Printf("Failed to unmarshal report: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Analyzing report failed"})
+		return
+	}
+
+	testReport := raw.ConvertToModel(userWallet.Hex(), req.Dataset, req.TestTime)
+	err = s.mysqlDb.Create(&testReport).Error
+	if err != nil {
+		log.Printf("Failed to write report to MySQL: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Writing report to MySQL failed"})
+		return
+	}
+
+	tx, err := s.ethCaller.RegisterData(c, userWallet, cid, req.Dataset)
 	if err != nil {
 		log.Printf("Failed to register data: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registering data failed"})
@@ -172,8 +191,49 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	}
 
 	log.Printf("Transaction hash: %s", tx.Hash().Hex())
-
 	c.JSON(http.StatusOK, gin.H{"msg": "ok", "data": tx.Hash().Hex()})
+}
+
+type ReportFile struct {
+	data        []byte
+	filename    string
+	contentType string
+}
+
+// readFile reads a file from the request form data.
+func (s *ApiService) readFile(c *gin.Context, fieldName string) (*ReportFile, error) {
+	fh, err := c.FormFile(fieldName)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := fh.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	// detect content type
+	head := make([]byte, 512)
+	n, _ := f.Read(head)
+	contentType := http.DetectContentType(head[:n])
+
+	// restart seek point
+	_, err = f.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	filedata, err := io.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ReportFile{
+		data:        filedata,
+		filename:    fh.Filename,
+		contentType: contentType,
+	}, nil
 }
 
 func (s *ApiService) GetReports(c *gin.Context) {}

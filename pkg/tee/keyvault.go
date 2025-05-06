@@ -19,13 +19,18 @@ type EthereumAccount struct {
 }
 
 type KeyVault struct {
-	client *dstack.DstackClient
-	cache  sync.Map // map[string][]byte
+	client       *dstack.DstackClient
+	cache        sync.Map // map[string][]byte
+	ethCache     sync.Map // map[string]*EthereumAccount
+	symmKeyCache sync.Map // map[string][]byte
 }
 
 func NewKeyVault(opts ...dstack.DstackClientOption) *KeyVault {
 	return &KeyVault{
-		client: dstack.NewDstackClient(opts...),
+		client:       dstack.NewDstackClient(opts...),
+		cache:        sync.Map{},
+		ethCache:     sync.Map{},
+		symmKeyCache: sync.Map{},
 	}
 }
 
@@ -49,6 +54,11 @@ func (t *KeyVault) getRawKey(ctx context.Context, kc *KeyContext) ([]byte, error
 }
 
 func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, length int) ([]byte, error) {
+	cacheKey := kc.CacheKey()
+	if val, ok := t.symmKeyCache.Load(cacheKey); ok {
+		return val.([]byte), nil
+	}
+
 	raw, err := t.getRawKey(ctx, kc)
 	if err != nil {
 		return nil, err
@@ -58,10 +68,16 @@ func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, lengt
 	if _, err := io.ReadFull(reader, key); err != nil {
 		return nil, err
 	}
+	t.symmKeyCache.Store(cacheKey, key)
 	return key, nil
 }
 
 func (t *KeyVault) DeriveEthereumAccount(ctx context.Context, kc *KeyContext) (*EthereumAccount, error) {
+	cacheKey := kc.CacheKey()
+	if val, ok := t.ethCache.Load(cacheKey); ok {
+		return val.(*EthereumAccount), nil
+	}
+
 	raw, err := t.getRawKey(ctx, kc)
 	if err != nil {
 		return nil, err
@@ -70,9 +86,10 @@ func (t *KeyVault) DeriveEthereumAccount(ctx context.Context, kc *KeyContext) (*
 	if err != nil {
 		return nil, err
 	}
-	addr := crypto.PubkeyToAddress(priv.PublicKey)
-	return &EthereumAccount{
+	acc := &EthereumAccount{
 		PrivateKey: priv,
-		Address:    addr.Hex(),
-	}, nil
+		Address:    crypto.PubkeyToAddress(priv.PublicKey).Hex(),
+	}
+	t.ethCache.Store(cacheKey, acc)
+	return acc, nil
 }

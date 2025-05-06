@@ -2,10 +2,6 @@ package control
 
 import (
 	"context"
-	"delong/pkg/contracts"
-	"delong/pkg/db"
-	"delong/pkg/tee"
-	"delong/pkg/ws"
 	"log"
 
 	"golang.org/x/sync/errgroup"
@@ -13,40 +9,19 @@ import (
 
 type Service interface {
 	Name() string
-	Init(context.Context, *ServiceState) error
+	Init(context.Context) error
 	Start(context.Context) error
 	Stop(context.Context) error
 }
 
-type ServiceState struct {
-	IpfsStore *db.IpfsStore
-	EthCaller *contracts.ContractCaller
-	KeyVault  *tee.KeyVault
-	Notifier  *ws.Notifier
-}
-
-func NewServiceState(
-	ipfsClient *db.IpfsStore,
-	ethCaller *contracts.ContractCaller,
-	keyVault *tee.KeyVault,
-	notifier *ws.Notifier,
-) *ServiceState {
-	return &ServiceState{
-		IpfsStore: ipfsClient,
-		EthCaller: ethCaller,
-		KeyVault:  keyVault,
-		Notifier:  notifier,
-	}
-}
-
 type ServiceManager struct {
 	services []Service
-	state    *ServiceState
+	deps     *Dependencies
 }
 
-func NewServiceManager(state *ServiceState, srvs ...Service) *ServiceManager {
+func NewServiceManager(deps *Dependencies, srvs ...Service) *ServiceManager {
 	return &ServiceManager{
-		state:    state,
+		deps:     deps,
 		services: srvs,
 	}
 }
@@ -54,10 +29,11 @@ func NewServiceManager(state *ServiceState, srvs ...Service) *ServiceManager {
 func (sm *ServiceManager) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for _, srv := range sm.services {
+		srv := srv
 		g.Go(func() error {
 			srvname := srv.Name()
 			log.Printf("Initializing %v ...", srvname)
-			srv.Init(ctx, sm.state)
+			srv.Init(ctx)
 			log.Printf("Starting %v ...", srvname)
 			return srv.Start(ctx)
 		})

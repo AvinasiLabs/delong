@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"delong/pkg"
 	"fmt"
 	"io"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/ipfs/boxo/path"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/kubo/client/rpc"
-	"github.com/ipfs/kubo/core/coreiface/options"
 
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -34,16 +34,30 @@ func NewIpfsStore(ipfsApiAddr string) (*IpfsStore, error) {
 	}, nil
 }
 
-func (i *IpfsStore) Add(ctx context.Context, fd []byte, opts ...options.UnixfsAddOption) (string, error) {
+func (i *IpfsStore) Upload(ctx context.Context, fd []byte) (string, error) {
 	f := files.NewBytesFile(fd)
-	p, err := i.ipfsApi.Unixfs().Add(ctx, f, opts...)
+	p, err := i.ipfsApi.Unixfs().Add(ctx, f)
 	if err != nil {
 		return "", err
 	}
 	return p.RootCid().String(), nil
 }
 
-func (i *IpfsStore) Get(ctx context.Context, cidStr string) ([]byte, error) {
+func (i *IpfsStore) UploadEncrypted(ctx context.Context, rawFile []byte, key []byte) (string, error) {
+	combined, err := pkg.EncryptGCM(rawFile, key)
+	if err != nil {
+		return "", err
+	}
+
+	cid, err := i.Upload(ctx, combined)
+	if err != nil {
+		return "", err
+	}
+
+	return cid, nil
+}
+
+func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return nil, err
