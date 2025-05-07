@@ -212,6 +212,7 @@ func (c *ContractCaller) RegisterData(ctx context.Context, userAccount common.Ad
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Tee eth account: %v", ethAcc.Address)
 
 	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
 	if err != nil {

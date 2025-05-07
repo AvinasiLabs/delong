@@ -3,23 +3,30 @@ package chainsync
 import (
 	"context"
 	"delong/internal/control"
+	"delong/internal/model"
 	"delong/pkg/contracts"
 	"delong/pkg/ws"
 	"log"
+	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core/types"
+	"gorm.io/gorm"
 )
 
 type ChainsyncService struct {
 	name      string
 	notifier  *ws.Notifier
 	ethCaller *contracts.ContractCaller
+	db        *gorm.DB
 }
 
 type ChainsyncServiceOptions struct {
 	Blockchain   *control.BlockchainDeps
 	Notification *control.NotificationDeps
+	Storage      *control.StorageDeps
 }
 
 const SERVICE_NAME = "chainsync-service"
@@ -29,6 +36,7 @@ func NewChainsyncService(opts ChainsyncServiceOptions) *ChainsyncService {
 		name:      SERVICE_NAME,
 		notifier:  opts.Notification.Notifier,
 		ethCaller: opts.Blockchain.EthCaller,
+		db:        opts.Storage.MysqlDb,
 	}
 }
 
@@ -79,14 +87,34 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 				log.Printf("Receipt fetch failed: %v", err)
 				return
 			}
-			if receipt.Status != 1 {
-				s.notifier.PushStatus(txHash, ws.StatusFailed)
+			// First get block info (needed for both success and failure cases)
+			blockNumber := evt.Raw.BlockNumber
+
+			// We need to fetch the block to get its timestamp
+			block, err := s.ethCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			if err != nil {
+				log.Printf("Failed to fetch block details: %v", err)
 				return
 			}
 
-			// TODO: persist cid, dataset, contributor
+			blockTime := time.Unix(int64(block.Time()), 0)
 
-			s.notifier.PushStatus(txHash, ws.StatusConfirmed)
+			// Determine transaction status based on receipt
+			var status string
+			if receipt.Status != types.ReceiptStatusSuccessful {
+				status = model.TxStatusFailed
+			} else {
+				status = model.TxStatusConfirmed
+			}
+
+			// Update transaction status
+			err = model.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			if err != nil {
+				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				return
+			}
+
+			s.notifier.PushStatus(txHash, status)
 		},
 	)
 }

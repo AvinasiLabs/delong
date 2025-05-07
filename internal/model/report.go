@@ -12,10 +12,11 @@ type Dataset struct {
 
 // One uploaded report from user
 type TestReport struct {
-	ID         int
-	UserWallet string
-	Dataset    string
-	TestTime   time.Time
+	ID           int
+	UserWallet   string
+	RawReportCid string
+	Dataset      string
+	TestTime     time.Time
 
 	Results []TestResult `gorm:"foreignKey:ReportID"` // Logical link only
 }

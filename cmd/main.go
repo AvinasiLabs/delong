@@ -87,6 +87,7 @@ func main() {
 	chainsyncService := chainsync.NewChainsyncService(chainsync.ChainsyncServiceOptions{
 		Blockchain:   deps.Blockchain,
 		Notification: deps.Notification,
+		Storage:      deps.Storage,
 	})
 
 	srvMgr := control.NewServiceManager(deps, apiService, chainsyncService)

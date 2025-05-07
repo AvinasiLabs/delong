@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"delong/internal/control"
+	"delong/internal/model"
 	"delong/internal/types"
 	"delong/pkg/analyzer"
 	"delong/pkg/contracts"
@@ -175,7 +176,8 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		return
 	}
 
-	testReport := raw.ConvertToModel(userWallet.Hex(), req.Dataset, req.TestTime)
+	// Create report record
+	testReport := raw.ConvertToModel(userWallet.Hex(), cid, req.Dataset, req.TestTime)
 	err = s.mysqlDb.Create(&testReport).Error
 	if err != nil {
 		log.Printf("Failed to write report to MySQL: %v", err)
@@ -183,15 +185,24 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		return
 	}
 
+	// Call contract to submit on-chain transaction
 	tx, err := s.ethCaller.RegisterData(c, userWallet, cid, req.Dataset)
 	if err != nil {
 		log.Printf("Failed to register data: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registering data failed"})
 		return
 	}
+	txHash := tx.Hash().Hex()
 
-	log.Printf("Transaction hash: %s", tx.Hash().Hex())
-	c.JSON(http.StatusOK, gin.H{"msg": "ok", "data": tx.Hash().Hex()})
+	// Create blockchain transaction record
+	_, err = model.CreateTransaction(s.mysqlDb, txHash, uint(testReport.ID))
+	if err != nil {
+		log.Printf("Failed to create blockchain transaction record: %v", err)
+		// Don't interrupt the operation, just log the error
+	}
+
+	log.Printf("Transaction hash: %s", txHash)
+	c.JSON(http.StatusOK, gin.H{"msg": "ok", "data": txHash})
 }
 
 type ReportFile struct {
