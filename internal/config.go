@@ -101,6 +101,6 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tMinio Secret Key: %s\n", c.MinioSecretKey))
 	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Endpoint: %s\n", c.DiagnosticSrvEndpoint))
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
-	builder.WriteString(fmt.Sprintf("\tOfficial Account PK: %s\n", c.OfficialAccountPrivateKey))
+	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
 	return builder.String()
 }

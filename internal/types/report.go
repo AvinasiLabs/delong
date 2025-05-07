@@ -18,7 +18,7 @@ type TestResultItem struct {
 }
 
 // ConvertToModel converts RawReport to a TestReport with nested TestResults.
-func (raw RawReport) ConvertToModel(userWallet, cid, dataset string, testTime time.Time) model.TestReport {
+func (raw RawReport) ConvertToModel(userWallet, fileHash, cid, dataset string, testTime time.Time) model.TestReport {
 	var results []model.TestResult
 
 	for category, items := range raw {
@@ -39,6 +39,7 @@ func (raw RawReport) ConvertToModel(userWallet, cid, dataset string, testTime ti
 	return model.TestReport{
 		UserWallet:   userWallet,
 		Dataset:      dataset,
+		FileHash:     fileHash,
 		RawReportCid: cid,
 		TestTime:     testTime,
 		Results:      results,

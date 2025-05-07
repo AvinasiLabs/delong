@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
 	"delong/internal/control"
 	"delong/internal/model"
 	"delong/internal/types"
@@ -10,6 +11,7 @@ import (
 	"delong/pkg/db"
 	"delong/pkg/tee"
 	"delong/pkg/ws"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -139,48 +141,54 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		return
 	}
 
-	aesKey, err := s.keyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
-	if err != nil {
-		log.Printf("Failed to derive symmetric key: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Deriving symmetric key failed"})
+	// Calculate hash of original file for deduplication
+	originalHash := sha256.Sum256(reportFile.data)
+	originalHashStr := hex.EncodeToString(originalHash[:])
+
+	// Check if this file has already been uploaded (by any user)
+	var existingReport model.TestReport
+	if err := s.mysqlDb.Where("file_hash = ?", originalHashStr).First(&existingReport).Error; err == nil {
+		// File already exists in the system
+		log.Printf("File with hash %s already exists in the system", originalHashStr)
+		c.JSON(http.StatusConflict, gin.H{"error": "this file has already been uploaded to the system", "existing_cid": existingReport.RawReportCid})
 		return
 	}
 
+	// Upload encrypted raw report file
+	aesKey, err := s.keyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Deriving symmetric key failed"})
+		return
+	}
 	cid, err := s.ipfsStore.UploadEncrypted(c, reportFile.data, aesKey)
 	if err != nil {
-		log.Printf("Failed to upload encrypted data: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Uploading data failed"})
 		return
 	}
 
+	// Parse raw report file to structured data
 	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.filename)
 	err = s.minioStore.UploadBytes(c, "diagnostic", objName, reportFile.data, reportFile.contentType)
 	if err != nil {
-		log.Printf("Failed to upload file to MinIO: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Uploading file to MinIO failed"})
 		return
 	}
-
 	result, err := s.reportAnalyzer.Analyze(c, "minio", reportFile.contentType, objName, userWallet.Hex())
 	if err != nil {
-		log.Printf("Failed to analyze report: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Analyzing report failed"})
 		return
 	}
-
 	var raw types.RawReport
 	err = json.Unmarshal(result, &raw)
 	if err != nil {
-		log.Printf("Failed to unmarshal report: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Analyzing report failed"})
 		return
 	}
 
 	// Create report record
-	testReport := raw.ConvertToModel(userWallet.Hex(), cid, req.Dataset, req.TestTime)
+	testReport := raw.ConvertToModel(userWallet.Hex(), originalHashStr, cid, req.Dataset, req.TestTime)
 	err = s.mysqlDb.Create(&testReport).Error
 	if err != nil {
-		log.Printf("Failed to write report to MySQL: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Writing report to MySQL failed"})
 		return
 	}
@@ -188,11 +196,11 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	// Call contract to submit on-chain transaction
 	tx, err := s.ethCaller.RegisterData(c, userWallet, cid, req.Dataset)
 	if err != nil {
-		log.Printf("Failed to register data: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registering data failed"})
 		return
 	}
 	txHash := tx.Hash().Hex()
+	log.Printf("Transaction hash: %s", txHash)
 
 	// Create blockchain transaction record
 	_, err = model.CreateTransaction(s.mysqlDb, txHash, uint(testReport.ID))
@@ -201,7 +209,6 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		// Don't interrupt the operation, just log the error
 	}
 
-	log.Printf("Transaction hash: %s", txHash)
 	c.JSON(http.StatusOK, gin.H{"msg": "ok", "data": txHash})
 }
 

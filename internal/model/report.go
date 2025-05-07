@@ -14,17 +14,18 @@ type Dataset struct {
 type TestReport struct {
 	ID           int
 	UserWallet   string
-	RawReportCid string
+	FileHash     string // Hash of original file for deduplication
+	RawReportCid string // CID of encrypted original file
 	Dataset      string
 	TestTime     time.Time
 
-	Results []TestResult `gorm:"foreignKey:ReportID"` // Logical link only
+	Results []TestResult
 }
 
 // One individual result item under a report
 type TestResult struct {
 	ID             int
-	ReportID       int
+	TestReportID   int
 	Category       string
 	Name           string
 	Definition     string
