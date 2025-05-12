@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"delong/internal"
-	"delong/internal/api"
-	"delong/internal/chainsync"
-	"delong/internal/control"
+	"delong/internal/services"
 	"delong/pkg/analyzer"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
+	"delong/pkg/scheduler"
 	"delong/pkg/tee"
 	"delong/pkg/ws"
 	"log"
@@ -57,7 +56,7 @@ func main() {
 		log.Fatalf("Failed to create funding private key: %v", err)
 	}
 
-	ethCaller, err := contracts.NewContractCaller(
+	ctrCaller, err := contracts.NewContractCaller(
 		config.EthHttpUrl, config.EthWsUrl, config.ChainId,
 		keyVault,
 		fundingPrivKey, 0.005, 0.1,
@@ -66,7 +65,7 @@ func main() {
 		log.Fatalf("Failed to create contract caller: %v", err)
 	}
 
-	err = ethCaller.EnsureContractsDeployed(ctx, mysqlDb)
+	err = ctrCaller.EnsureContractsDeployed(ctx, mysqlDb)
 	if err != nil {
 		log.Fatalf("Failed to ensure contracts deployed: %v", err)
 	}
@@ -74,23 +73,38 @@ func main() {
 	hub := ws.NewHub()
 	notifier := ws.NewNotifier(hub)
 
-	deps := control.NewDependencies(ipfsStore, minioStore, mysqlDb, reportAnalyzer, ethCaller, keyVault, notifier)
+	algoScheduler, err := scheduler.NewAlgoScheduler(100)
+	if err != nil {
+		log.Fatalf("Failed to create algo scheduler: %v", err)
+	}
 
-	apiService := api.NewApiService(api.ApiServiceOptions{
-		Addr:         ":8080",
-		Storage:      deps.Storage,
-		Blockchain:   deps.Blockchain,
-		Notification: deps.Notification,
-		Analyzer:     deps.Analyzer,
+	apiService := services.NewApiService(services.ApiServiceOptions{
+		Addr:           ":8080",
+		IpfsStore:      ipfsStore,
+		MinioStore:     minioStore,
+		MysqlDb:        mysqlDb,
+		CtrCaller:      ctrCaller,
+		KeyVault:       keyVault,
+		Notifier:       notifier,
+		ReportAnalyzer: reportAnalyzer,
 	})
 
-	chainsyncService := chainsync.NewChainsyncService(chainsync.ChainsyncServiceOptions{
-		Blockchain:   deps.Blockchain,
-		Notification: deps.Notification,
-		Storage:      deps.Storage,
+	chainsyncService := services.NewChainsyncService(services.ChainsyncServiceOptions{
+		CtrCaller:     ctrCaller,
+		KeyVault:      keyVault,
+		Notifier:      notifier,
+		MysqlDb:       mysqlDb,
+		AlgoScheduler: algoScheduler,
 	})
 
-	srvMgr := control.NewServiceManager(deps, apiService, chainsyncService)
+	runtimeService := services.NewRuntimeService(services.RuntimeServiceOptions{
+		Db:            mysqlDb,
+		IpfsStore:     ipfsStore,
+		CtrCaller:     ctrCaller,
+		AlgoScheduler: algoScheduler,
+	})
+
+	srvMgr := internal.NewServiceManager(apiService, chainsyncService, runtimeService)
 
 	srvMgr.Run(context.Background())
 }

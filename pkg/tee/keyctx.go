@@ -9,8 +9,8 @@ import (
 type KeyKind string
 
 const (
-	KindEthAccount    KeyKind = "eth_account"
-	KindEncryptionKey KeyKind = "encryption"
+	KEYKIND_ETH_ACC KeyKind = "eth_account"
+	KEYKIND_ENC_KEY KeyKind = "encryption"
 )
 
 type KeyContext struct {

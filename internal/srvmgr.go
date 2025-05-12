@@ -1,4 +1,4 @@
-package control
+package internal
 
 import (
 	"context"
@@ -16,12 +16,10 @@ type Service interface {
 
 type ServiceManager struct {
 	services []Service
-	deps     *Dependencies
 }
 
-func NewServiceManager(deps *Dependencies, srvs ...Service) *ServiceManager {
+func NewServiceManager(srvs ...Service) *ServiceManager {
 	return &ServiceManager{
-		deps:     deps,
 		services: srvs,
 	}
 }

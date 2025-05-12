@@ -8,9 +8,9 @@ import (
 
 // Blockchain transaction status constants
 const (
-	TxStatusPending   = "pending"   // Transaction submitted but not confirmed
-	TxStatusConfirmed = "confirmed" // Transaction confirmed on chain
-	TxStatusFailed    = "failed"    // Transaction failed
+	TX_STATUS_PENDING   = "PENDING"   // Transaction submitted but not confirmed
+	TX_STATUS_CONFIRMED = "CONFIRMED" // Transaction confirmed on chain
+	TX_STATUS_FAILED    = "FAILED"    // Transaction failed
 )
 
 // No transaction type constants needed
@@ -42,7 +42,7 @@ func CreateTransaction(db *gorm.DB, txHash string, entityID uint) (*BlockchainTr
 	tx := &BlockchainTransaction{
 		TxHash:   txHash,
 		EntityID: entityID,
-		Status:   TxStatusPending,
+		Status:   TX_STATUS_PENDING,
 	}
 
 	err := db.Create(tx).Error
@@ -50,6 +50,24 @@ func CreateTransaction(db *gorm.DB, txHash string, entityID uint) (*BlockchainTr
 		return nil, err
 	}
 	return tx, nil
+}
+
+// UpdateTransactionEntity updates both the EntityID and Status
+func UpdateTransactionEntity(db *gorm.DB, txHash string, entityID uint, status string, blockNumber *uint64, blockTime *time.Time) error {
+	updates := map[string]any{
+		"entity_id": entityID,
+		"status":    status,
+	}
+	if blockNumber != nil {
+		updates["block_number"] = blockNumber
+	}
+	if blockTime != nil {
+		updates["block_timestamp"] = blockTime
+	}
+	return db.Model(&BlockchainTransaction{}).
+		Where("tx_hash = ?", txHash).
+		Updates(updates).
+		Error
 }
 
 // UpdateTransactionStatus updates the status of a transaction

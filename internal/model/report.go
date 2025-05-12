@@ -12,7 +12,7 @@ type Dataset struct {
 
 // One uploaded report from user
 type TestReport struct {
-	ID           int
+	ID           uint
 	UserWallet   string
 	FileHash     string // Hash of original file for deduplication
 	RawReportCid string // CID of encrypted original file
@@ -24,7 +24,7 @@ type TestReport struct {
 
 // One individual result item under a report
 type TestResult struct {
-	ID             int
+	ID             uint
 	TestReportID   int
 	Category       string
 	Name           string

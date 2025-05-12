@@ -10,7 +10,7 @@ func TestDeriveSymmetricKey(t *testing.T) {
 	ctx := context.Background()
 	keyVault := NewKeyVault()
 
-	kc := NewKeyContext(KindEncryptionKey, "testuser", "encrypt_data")
+	kc := NewKeyContext(KEYKIND_ENC_KEY, "testuser", "encrypt_data")
 
 	key, err := keyVault.DeriveSymmetricKey(ctx, kc, 32)
 	if err != nil {
@@ -27,7 +27,7 @@ func TestDeriveEthereumAccount(t *testing.T) {
 	ctx := context.Background()
 	keyVault := NewKeyVault()
 
-	kc := NewKeyContext(KindEthAccount, "testuser", "eth_identity")
+	kc := NewKeyContext(KEYKIND_ETH_ACC, "testuser", "eth_identity")
 
 	acct, err := keyVault.DeriveEthereumAccount(ctx, kc)
 	if err != nil {

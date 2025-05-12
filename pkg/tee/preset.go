@@ -6,7 +6,7 @@ package tee
 var (
 	// Used to deploy and interact with on-chain contracts as the trusted owner.
 	KeyCtxTEEContractOwner = NewKeyContext(
-		KindEthAccount,
+		KEYKIND_ETH_ACC,
 		"tee-eth-account",
 		"contract owner",
 	)
@@ -16,7 +16,7 @@ var (
 var (
 	// Used to encrypt user-uploaded diagnostic reports before IPFS storage.
 	KeyCtxUploadReportEncrypt = NewKeyContext(
-		KindEncryptionKey,
+		KEYKIND_ENC_KEY,
 		"upload-report-key",
 		"encrypt user test report",
 	)

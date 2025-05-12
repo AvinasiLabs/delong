@@ -81,6 +81,10 @@ func (c *ContractCaller) DataContributionCtrtAddr() common.Address {
 	return c.contractAddr.DataContribution
 }
 
+func (c *ContractCaller) AlgoReviewCtrtAddr() common.Address {
+	return c.contractAddr.AlgorithmReview
+}
+
 // EthToWei converts an ETH amount to a wei amount.
 func EthToWei(eth float64) *big.Int {
 	f := new(big.Float).Mul(big.NewFloat(eth), big.NewFloat(1e18))
@@ -230,4 +234,29 @@ func (c *ContractCaller) RegisterData(ctx context.Context, userAccount common.Ad
 	}
 
 	return ctct.RegisterData(txOpts, userAccount, cid, dataset)
+}
+
+func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc common.Address, cid string, dataset string) (*types.Transaction, error) {
+	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Tee eth account: %v", ethAcc.Address)
+
+	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	if err != nil {
+		return nil, err
+	}
+
+	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctct.SubmitAlgorithm(txOpts, scientistAcc, cid, dataset)
 }

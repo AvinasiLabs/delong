@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"delong/pkg"
+	"delong/pkg/aesgcm"
 	"fmt"
 	"io"
 
@@ -43,6 +44,16 @@ func (i *IpfsStore) Upload(ctx context.Context, fd []byte) (string, error) {
 	return p.RootCid().String(), nil
 }
 
+// UploadStream uploads an io.Reader stream to IPFS without buffering it all in memory.
+func (i *IpfsStore) UploadStream(ctx context.Context, r io.Reader) (string, error) {
+	f := files.NewReaderFile(r)
+	node, err := i.ipfsApi.Unixfs().Add(ctx, f)
+	if err != nil {
+		return "", err
+	}
+	return node.RootCid().String(), nil
+}
+
 func (i *IpfsStore) UploadEncrypted(ctx context.Context, rawFile []byte, key []byte) (string, error) {
 	combined, err := pkg.EncryptGCM(rawFile, key)
 	if err != nil {
@@ -55,6 +66,38 @@ func (i *IpfsStore) UploadEncrypted(ctx context.Context, rawFile []byte, key []b
 	}
 
 	return cid, nil
+}
+
+// UploadEncryptedStream reads plaintext from r, encrypts it in fixed-size chunks,
+// and uploads the resulting ciphertext stream to IPFS. It returns the root CID.
+func (i *IpfsStore) UploadEncryptedStream(ctx context.Context, r io.Reader, key []byte, chunkSize int) (string, error) {
+	// Create a pipe, write encrypted data into pw,
+	// and read it from pr to feed into IPFS.
+	pr, pw := io.Pipe()
+
+	ew, err := aesgcm.NewWriter(pw, key, chunkSize)
+	if err != nil {
+		pw.Close()
+		return "", fmt.Errorf("failed to create encrypt writer: %w", err)
+	}
+
+	go func() {
+		defer pw.Close()
+		// Copy plaintext from r into the encryptor.
+		if _, err := io.Copy(ew, r); err != nil {
+			// Propagate error to reader side.
+			pw.CloseWithError(fmt.Errorf("encryption error: %w", err))
+			return
+		}
+		ew.Close()
+	}()
+
+	f := files.NewReaderFile(pr)
+	node, err := i.ipfsApi.Unixfs().Add(ctx, f)
+	if err != nil {
+		return "", fmt.Errorf("IPFS add failed: %w", err)
+	}
+	return node.RootCid().String(), nil
 }
 
 func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error) {
