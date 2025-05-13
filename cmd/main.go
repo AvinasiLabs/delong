@@ -4,10 +4,10 @@ import (
 	"context"
 	"delong/internal"
 	"delong/internal/services"
-	"delong/pkg/analyzer"
+	"delong/pkg/analysis"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
-	"delong/pkg/scheduler"
+	"delong/pkg/schedule"
 	"delong/pkg/tee"
 	"delong/pkg/ws"
 	"log"
@@ -47,7 +47,7 @@ func main() {
 		log.Fatalf("Failed to create mysql client: %v", err)
 	}
 
-	reportAnalyzer := analyzer.NewReportAnalyzer(config.DiagnosticSrvEndpoint)
+	reportAnalyzer := analysis.NewReportAnalyzer(config.DiagnosticSrvEndpoint)
 
 	keyVault := tee.NewKeyVault()
 
@@ -73,7 +73,7 @@ func main() {
 	hub := ws.NewHub()
 	notifier := ws.NewNotifier(hub)
 
-	algoScheduler, err := scheduler.NewAlgoScheduler(100)
+	algoScheduler, err := schedule.NewAlgoScheduler(100)
 	if err != nil {
 		log.Fatalf("Failed to create algo scheduler: %v", err)
 	}

@@ -3,7 +3,7 @@ package contracts
 import (
 	"context"
 	"crypto/ecdsa"
-	"delong/internal/model"
+	"delong/internal/models"
 	"delong/pkg/tee"
 	"log"
 	"math/big"
@@ -174,7 +174,7 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 	}
 
 	// DataContribution
-	addrStr, err := model.GetContractAddress(db, CTRKEY_DATA_CONTRIBUTION)
+	addrStr, err := models.GetContractAddress(db, CTRKEY_DATA_CONTRIBUTION)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 			return err
 		}
 		log.Printf("Deployed DataContribution at %s (tx: %s)", addr.Hex(), tx.Hash().Hex())
-		if err := model.SaveContractAddress(db, CTRKEY_DATA_CONTRIBUTION, addr.Hex()); err != nil {
+		if err := models.SaveContractAddress(db, CTRKEY_DATA_CONTRIBUTION, addr.Hex()); err != nil {
 			return err
 		}
 		c.contractAddr.DataContribution = addr

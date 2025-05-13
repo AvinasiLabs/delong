@@ -1,5 +1,4 @@
-// scheduler.go
-package scheduler
+package schedule
 
 import (
 	"bytes"

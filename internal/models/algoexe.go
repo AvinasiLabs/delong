@@ -1,4 +1,4 @@
-package model
+package models
 
 import (
 	"time"
@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	EXESTATUS_QUEUED    = "QUEUED"
-	EXESTATUS_RUNNING   = "RUNNING"
-	EXESTATUS_COMPLETED = "COMPLETED"
-	EXESTATUS_FAILED    = "FAILED"
+	EXE_STATUS_QUEUED    = "QUEUED"
+	EXE_STATUS_RUNNING   = "RUNNING"
+	EXE_STATUS_COMPLETED = "COMPLETED"
+	EXE_STATUS_FAILED    = "FAILED"
 )
 
 // AlgoExecution tracks algorithm execution status and results
@@ -50,7 +50,7 @@ func UpdateExecutionStatus(db *gorm.DB, executionID uint, status string, errorMs
 		"updated_at": now,
 	}
 
-	if status == EXESTATUS_COMPLETED || status == EXESTATUS_FAILED {
+	if status == EXE_STATUS_COMPLETED || status == EXE_STATUS_FAILED {
 		updates["end_time"] = now
 	}
 
@@ -75,7 +75,7 @@ func UpdateExecutionResult(db *gorm.DB, executionID uint, result string) error {
 // GetPendingExecutions retrieves all executions in QUEUED or RUNNING state
 func GetPendingExecutions(db *gorm.DB) ([]AlgoExecution, error) {
 	var executions []AlgoExecution
-	err := db.Where("status IN ?", []string{EXESTATUS_QUEUED, EXESTATUS_RUNNING}).Find(&executions).Error
+	err := db.Where("status IN ?", []string{EXE_STATUS_QUEUED, EXE_STATUS_RUNNING}).Find(&executions).Error
 	return executions, err
 }
 

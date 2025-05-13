@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"delong/internal/model"
+	"delong/internal/models"
 	"delong/pkg/contracts"
-	"delong/pkg/scheduler"
+	"delong/pkg/schedule"
 	"delong/pkg/tee"
 	"delong/pkg/ws"
 	"log"
@@ -22,7 +22,7 @@ type ChainsyncService struct {
 	notifier      *ws.Notifier
 	ctrCaller     *contracts.ContractCaller
 	db            *gorm.DB
-	algoScheduler *scheduler.AlgoScheduler
+	algoScheduler *schedule.AlgoScheduler
 }
 
 type ChainsyncServiceOptions struct {
@@ -30,7 +30,7 @@ type ChainsyncServiceOptions struct {
 	KeyVault      *tee.KeyVault
 	Notifier      *ws.Notifier
 	MysqlDb       *gorm.DB
-	AlgoScheduler *scheduler.AlgoScheduler
+	AlgoScheduler *schedule.AlgoScheduler
 }
 
 func NewChainsyncService(opts ChainsyncServiceOptions) *ChainsyncService {
@@ -112,13 +112,13 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 
 			// Determine transaction status based on receipt
 			if receipt.Status != types.ReceiptStatusSuccessful {
-				status = model.TX_STATUS_FAILED
+				status = models.TX_STATUS_FAILED
 			} else {
-				status = model.TX_STATUS_CONFIRMED
+				status = models.TX_STATUS_CONFIRMED
 			}
 
 			// Update transaction status
-			err = model.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
 				return
@@ -173,12 +173,12 @@ func (s *ChainsyncService) listenAlgoSubmitted(ctx context.Context) {
 
 			// Determine transaction status based on receipt
 			if receipt.Status != types.ReceiptStatusSuccessful {
-				status = model.TX_STATUS_FAILED
+				status = models.TX_STATUS_FAILED
 			} else {
-				status = model.TX_STATUS_CONFIRMED
+				status = models.TX_STATUS_CONFIRMED
 			}
 			// Update transaction status
-			err = model.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
 				return
@@ -233,9 +233,9 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 
 			// Determine transaction status based on receipt
 			if receipt.Status != types.ReceiptStatusSuccessful {
-				status = model.TX_STATUS_FAILED
+				status = models.TX_STATUS_FAILED
 			} else {
-				status = model.TX_STATUS_CONFIRMED
+				status = models.TX_STATUS_CONFIRMED
 			}
 
 			dbtx := s.db.Begin()
@@ -246,21 +246,21 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 				}
 			}()
 
-			var pending model.BlockchainTransaction
+			var pending models.BlockchainTransaction
 			if err := dbtx.Where("tx_hash = ?", txHash).First(&pending).Error; err != nil {
 				dbtx.Rollback()
 				log.Printf("pending tx not found: %v", err)
 				return
 			}
 
-			vote, err := model.CreateVote(dbtx, uint(evt.AlgoId.Uint64()), evt.Voter.Hex(), evt.Approved, blockTime)
+			vote, err := models.CreateVote(dbtx, uint(evt.AlgoId.Uint64()), evt.Voter.Hex(), evt.Approved, blockTime)
 			if err != nil {
 				dbtx.Rollback()
 				log.Printf("Failed to create vote: %v", err)
 				return
 			}
 
-			err = model.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
+			err = models.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
 			if err != nil {
 				dbtx.Rollback()
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
@@ -319,13 +319,13 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 
 			// Determine transaction status based on receipt
 			if receipt.Status != types.ReceiptStatusSuccessful {
-				status = model.TX_STATUS_FAILED
+				status = models.TX_STATUS_FAILED
 			} else {
-				status = model.TX_STATUS_CONFIRMED
+				status = models.TX_STATUS_CONFIRMED
 			}
 
 			// Update transaction status
-			err = model.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
 				return
@@ -334,7 +334,7 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 			algoId := evt.AlgoId.Uint64()
 			if evt.Approved {
 				log.Printf("Algo %d approved, notifying runtime service", algoId)
-				err := model.UpdateAlgoStatus(s.db, uint(algoId), model.ALGO_STATUS_APPROVED)
+				err := models.UpdateAlgoStatus(s.db, uint(algoId), models.ALGO_STATUS_APPROVED)
 				if err != nil {
 					log.Printf("Failed to update algo status to %s: %v", status, err)
 					return
@@ -348,7 +348,7 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 				}
 			} else {
 				log.Printf("Algo %d rejected", algoId)
-				err := model.UpdateAlgoStatus(s.db, uint(algoId), model.ALGO_STATUS_REJECTED)
+				err := models.UpdateAlgoStatus(s.db, uint(algoId), models.ALGO_STATUS_REJECTED)
 				if err != nil {
 					log.Printf("Failed to update algo status to %s: %v", status, err)
 					return

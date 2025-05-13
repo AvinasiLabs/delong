@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"delong/internal/model"
+	"delong/internal/models"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
-	"delong/pkg/scheduler"
+	"delong/pkg/schedule"
 	"fmt"
 	"io"
 	"log"
@@ -24,14 +24,14 @@ type RuntimeService struct {
 	db            *gorm.DB
 	ipfsStore     *db.IpfsStore
 	ctrCaller     *contracts.ContractCaller
-	algoScheduler *scheduler.AlgoScheduler
+	algoScheduler *schedule.AlgoScheduler
 }
 
 type RuntimeServiceOptions struct {
 	Db            *gorm.DB
 	IpfsStore     *db.IpfsStore
 	CtrCaller     *contracts.ContractCaller
-	AlgoScheduler *scheduler.AlgoScheduler
+	AlgoScheduler *schedule.AlgoScheduler
 }
 
 func NewRuntimeService(opts RuntimeServiceOptions) *RuntimeService {
@@ -65,7 +65,7 @@ func (s *RuntimeService) Start(ctx context.Context) error {
 			case algoID := <-s.algoScheduler.AlgoIdCh:
 				log.Printf("Received approved algorithm ID: %d", algoID)
 				go func(algoID uint) {
-					execution, err := model.CreateAlgoExecution(s.db, algoID, model.EXESTATUS_QUEUED)
+					execution, err := models.CreateAlgoExecution(s.db, algoID, models.EXE_STATUS_QUEUED)
 					if err != nil {
 						log.Printf("Failed to create execution record: %v", err)
 						return
@@ -97,29 +97,29 @@ func (s *RuntimeService) Stop(ctx context.Context) error {
 // executeAlgorithm handles the full algorithm execution process
 func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint) error {
 	// Update execution status to RUNNING
-	execution, err := model.UpdateExecutionStatus(s.db, executionID, "RUNNING")
+	execution, err := models.UpdateExecutionStatus(s.db, executionID, "RUNNING")
 	if err != nil {
 		return err
 	}
 
 	// Get algorithm details
-	algo, err := model.GetAlgoByID(s.db, execution.AlgoID)
+	algo, err := models.GetAlgoByID(s.db, execution.AlgoID)
 	if err != nil {
-		model.UpdateExecutionStatus(s.db, executionID, "FAILED", "Algorithm not found")
+		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Algorithm not found")
 		return err
 	}
 
 	// Download algorithm from IPFS and create temporary working directory
 	workDir, err := s.fetchAndExtractWorkDir(ctx, algo.Cid)
 	if err != nil {
-		model.UpdateExecutionStatus(s.db, executionID, "FAILED", "Failed to prepare work dir")
+		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Failed to prepare work dir")
 		return err
 	}
 	defer os.RemoveAll(workDir)
 
 	// Verify Dockerfile exists
 	if _, err := os.Stat(filepath.Join(workDir, "Dockerfile")); os.IsNotExist(err) {
-		model.UpdateExecutionStatus(s.db, executionID, "FAILED", "Dockerfile not found")
+		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Dockerfile not found")
 		return fmt.Errorf("dockerfile not found in algorithm package")
 	}
 
@@ -128,7 +128,7 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	log.Printf("Building image %s", imageName)
 	err = s.algoScheduler.BuildImage(ctx, workDir, imageName)
 	if err != nil {
-		model.UpdateExecutionStatus(s.db, executionID, "FAILED", "Image build failed")
+		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Image build failed")
 		return err
 	}
 
@@ -136,17 +136,17 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	log.Printf("Running algorithm container for dataset %s", algo.UsedDataset)
 	output, err := s.algoScheduler.RunContainer(ctx, imageName, nil)
 	if err != nil {
-		model.UpdateExecutionStatus(s.db, executionID, "FAILED", fmt.Sprintf("Execution failed: %v", err))
+		models.UpdateExecutionStatus(s.db, executionID, "FAILED", fmt.Sprintf("Execution failed: %v", err))
 		return err
 	}
 
 	// Save results
 	resultStr := string(output)
 	log.Printf("Algorithm execution completed with output length: %d bytes", len(resultStr))
-	model.UpdateExecutionResult(s.db, executionID, resultStr)
+	models.UpdateExecutionResult(s.db, executionID, resultStr)
 
 	// Update execution status to COMPLETED
-	_, err = model.UpdateExecutionStatus(s.db, executionID, "COMPLETED")
+	_, err = models.UpdateExecutionStatus(s.db, executionID, "COMPLETED")
 
 	return err
 }

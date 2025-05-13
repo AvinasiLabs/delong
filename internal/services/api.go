@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"crypto/sha256"
-	"delong/internal/model"
+	"delong/internal/models"
 	"delong/internal/types"
-	"delong/pkg/analyzer"
+	"delong/pkg/analysis"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
 	"delong/pkg/tee"
@@ -36,7 +36,7 @@ type ApiService struct {
 	ctrCaller      *contracts.ContractCaller
 	keyVault       *tee.KeyVault
 	notifier       *ws.Notifier
-	reportAnalyzer *analyzer.ReportAnalyzer
+	reportAnalyzer *analysis.ReportAnalyzer
 }
 
 type ApiServiceOptions struct {
@@ -47,14 +47,12 @@ type ApiServiceOptions struct {
 	CtrCaller      *contracts.ContractCaller
 	KeyVault       *tee.KeyVault
 	Notifier       *ws.Notifier
-	ReportAnalyzer *analyzer.ReportAnalyzer
+	ReportAnalyzer *analysis.ReportAnalyzer
 }
-
-const SERVICE_NAME = "api-service"
 
 func NewApiService(opts ApiServiceOptions) *ApiService {
 	return &ApiService{
-		name:           SERVICE_NAME,
+		name:           "api-service",
 		addr:           opts.Addr,
 		engine:         gin.Default(),
 		ipfsStore:      opts.IpfsStore,
@@ -148,7 +146,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	originalHashStr := hex.EncodeToString(originalHash[:])
 
 	// Check if this file has already been uploaded (by any user)
-	var existingReport model.TestReport
+	var existingReport models.TestReport
 	if err := s.mysqlDb.Where("file_hash = ?", originalHashStr).First(&existingReport).Error; err == nil {
 		// File already exists in the system
 		log.Printf("File with hash %s already exists in the system", originalHashStr)
@@ -218,7 +216,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	txHash := tx.Hash().Hex()
 
 	// Create blockchain transaction record
-	_, err = model.CreateTransaction(dbtx, txHash, testReport.ID)
+	_, err = models.CreateTransaction(dbtx, txHash, testReport.ID)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to create blockchain transaction record: %v", err)
@@ -276,7 +274,7 @@ func (s *ApiService) SubmitAlgo(c *gin.Context) {
 		}
 	}()
 
-	algo, err := model.CreateAlgo(dbtx, "", req.AlgoLink, req.ScientistWallet, cid, req.Dataset)
+	algo, err := models.CreateAlgo(dbtx, "", req.AlgoLink, req.ScientistWallet, cid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to create algorithm record: %v", err)
@@ -294,7 +292,7 @@ func (s *ApiService) SubmitAlgo(c *gin.Context) {
 
 	txHash := tx.Hash().Hex()
 	// Create blockchain transaction record
-	_, err = model.CreateTransaction(dbtx, txHash, algo.ID)
+	_, err = models.CreateTransaction(dbtx, txHash, algo.ID)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to create blockchain transaction record: %v", err)
@@ -324,7 +322,7 @@ func (s *ApiService) Vote(c *gin.Context) {
 		ResponseError(c, BAD_REQUEST)
 		return
 	}
-	_, err = model.CreateTransaction(s.mysqlDb, req.TxHash, 0) // Using 0 as a placeholder; will be updated later by the off-chain listener
+	_, err = models.CreateTransaction(s.mysqlDb, req.TxHash, 0) // Using 0 as a placeholder; will be updated later by the off-chain listener
 	if err != nil {
 		log.Printf("Failed to create blockchain transaction record: %v", err)
 		ResponseData(c, MYSQL_WRITE_FAIL)

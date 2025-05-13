@@ -1,7 +1,7 @@
 package types
 
 import (
-	"delong/internal/model"
+	"delong/internal/models"
 	"time"
 )
 
@@ -18,12 +18,12 @@ type TestResultItem struct {
 }
 
 // ConvertToModel converts RawReport to a TestReport with nested TestResults.
-func (raw RawReport) ConvertToModel(userWallet, fileHash, cid, dataset string, testTime time.Time) model.TestReport {
-	var results []model.TestResult
+func (raw RawReport) ConvertToModel(userWallet, fileHash, cid, dataset string, testTime time.Time) models.TestReport {
+	var results []models.TestResult
 
 	for category, items := range raw {
 		for _, item := range items {
-			results = append(results, model.TestResult{
+			results = append(results, models.TestResult{
 				Category:       category,
 				Name:           item.Name,
 				Definition:     item.Definition,
@@ -36,7 +36,7 @@ func (raw RawReport) ConvertToModel(userWallet, fileHash, cid, dataset string, t
 		}
 	}
 
-	return model.TestReport{
+	return models.TestReport{
 		UserWallet:   userWallet,
 		Dataset:      dataset,
 		FileHash:     fileHash,
