@@ -100,7 +100,19 @@ func (i *IpfsStore) UploadEncryptedStream(ctx context.Context, r io.Reader, key 
 	return node.RootCid().String(), nil
 }
 
+// Download reads the file with the given CID from IPFS.
 func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error) {
+	r, err := i.DownloadStream(ctx, cidStr)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	return io.ReadAll(r)
+}
+
+// DownloadStream reads the file with the given CID from IPFS.
+func (i *IpfsStore) DownloadStream(ctx context.Context, cidStr string) (io.ReadCloser, error) {
 	c, err := cid.Decode(cidStr)
 	if err != nil {
 		return nil, err
@@ -118,5 +130,5 @@ func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error)
 		return nil, fmt.Errorf("node is not a file")
 	}
 
-	return io.ReadAll(f)
+	return f, nil
 }

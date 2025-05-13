@@ -73,7 +73,7 @@ func main() {
 	hub := ws.NewHub()
 	notifier := ws.NewNotifier(hub)
 
-	algoScheduler, err := schedule.NewAlgoScheduler(100)
+	algoScheduler, err := schedule.NewAlgoScheduler()
 	if err != nil {
 		log.Fatalf("Failed to create algo scheduler: %v", err)
 	}

@@ -19,12 +19,40 @@ import (
 
 // AlgoScheduler handles Docker operations for algorithm execution
 type AlgoScheduler struct {
-	AlgoIdCh     chan uint
-	dockerClient *client.Client
+	AlgoIdCh       chan uint
+	dockerClient   *client.Client
+	buildSizeLimit int64
+}
+
+type SchedulerOption func(*AlgoScheduler)
+
+const (
+	// DEFAULT_CHANNEL_SIZE defines the default buffer size for algorithm execution channel
+	DEFAULT_CHANNEL_SIZE = 10
+
+	// DEFAULT_BUILD_SIZE_LIMIT defines the default build context size limit (100MB)
+	DEFAULT_BUILD_SIZE_LIMIT = 100 << 20
+)
+
+// WithChannelSize sets the buffer size for the algo ID channel
+func WithChannelSize(size int) SchedulerOption {
+	return func(s *AlgoScheduler) {
+		if size > 0 {
+			s.AlgoIdCh = make(chan uint, size)
+		}
+	}
+}
+
+func WithBuildSizeLimit(bytes int64) SchedulerOption {
+	return func(s *AlgoScheduler) {
+		if bytes > 0 {
+			s.buildSizeLimit = bytes
+		}
+	}
 }
 
 // NewAlgoScheduler creates a new algo scheduler with the specified channel buffer size
-func NewAlgoScheduler(size int) (*AlgoScheduler, error) {
+func NewAlgoScheduler(opts ...SchedulerOption) (*AlgoScheduler, error) {
 	dockerClient, err := client.NewClientWithOpts(
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
@@ -32,10 +60,22 @@ func NewAlgoScheduler(size int) (*AlgoScheduler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &AlgoScheduler{
-		AlgoIdCh:     make(chan uint, size),
-		dockerClient: dockerClient,
-	}, nil
+	s := &AlgoScheduler{
+		dockerClient:   dockerClient,
+		AlgoIdCh:       make(chan uint, DEFAULT_CHANNEL_SIZE),
+		buildSizeLimit: DEFAULT_BUILD_SIZE_LIMIT,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s, nil
+}
+
+// BuildSizeLimit returns the maximum size limit for Docker image builds
+func (s *AlgoScheduler) BuildSizeLimit() int64 {
+	return s.buildSizeLimit
 }
 
 // BuildImage builds a Docker image from a directory containing a Dockerfile
@@ -54,6 +94,7 @@ func (s *AlgoScheduler) BuildImage(ctx context.Context, dirPath, imageName strin
 		Dockerfile:  "Dockerfile",
 		Remove:      true,
 		ForceRemove: true,
+		NoCache:     true,
 	}
 
 	resp, err := s.dockerClient.ImageBuild(ctx, buildContext, options)

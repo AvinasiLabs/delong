@@ -2,7 +2,6 @@ package services
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"delong/internal/models"
@@ -76,7 +75,7 @@ func (s *RuntimeService) Start(ctx context.Context) error {
 						execCtx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
 						defer cancel()
 
-						err := s.executeAlgorithm(execCtx, execution.ID)
+						err := s.execute(execCtx, execution.ID)
 						if err != nil {
 							log.Printf("Algorithm execution %d failed: %v", execution.ID, err)
 						}
@@ -94,10 +93,10 @@ func (s *RuntimeService) Stop(ctx context.Context) error {
 	return nil
 }
 
-// executeAlgorithm handles the full algorithm execution process
-func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint) error {
+// execute handles the full algorithm execution process
+func (s *RuntimeService) execute(ctx context.Context, executionID uint) error {
 	// Update execution status to RUNNING
-	execution, err := models.UpdateExecutionStatus(s.db, executionID, "RUNNING")
+	execution, err := models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_RUNNING)
 	if err != nil {
 		return err
 	}
@@ -105,21 +104,21 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	// Get algorithm details
 	algo, err := models.GetAlgoByID(s.db, execution.AlgoID)
 	if err != nil {
-		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Algorithm not found")
+		models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_FAILED, "Algorithm not found")
 		return err
 	}
 
 	// Download algorithm from IPFS and create temporary working directory
 	workDir, err := s.fetchAndExtractWorkDir(ctx, algo.Cid)
 	if err != nil {
-		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Failed to prepare work dir")
+		models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_FAILED, "Failed to prepare work dir")
 		return err
 	}
 	defer os.RemoveAll(workDir)
 
 	// Verify Dockerfile exists
 	if _, err := os.Stat(filepath.Join(workDir, "Dockerfile")); os.IsNotExist(err) {
-		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Dockerfile not found")
+		models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_FAILED, "Dockerfile not found")
 		return fmt.Errorf("dockerfile not found in algorithm package")
 	}
 
@@ -128,7 +127,7 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	log.Printf("Building image %s", imageName)
 	err = s.algoScheduler.BuildImage(ctx, workDir, imageName)
 	if err != nil {
-		models.UpdateExecutionStatus(s.db, executionID, "FAILED", "Image build failed")
+		models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_FAILED, "Image build failed")
 		return err
 	}
 
@@ -136,7 +135,7 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	log.Printf("Running algorithm container for dataset %s", algo.UsedDataset)
 	output, err := s.algoScheduler.RunContainer(ctx, imageName, nil)
 	if err != nil {
-		models.UpdateExecutionStatus(s.db, executionID, "FAILED", fmt.Sprintf("Execution failed: %v", err))
+		models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_FAILED, fmt.Sprintf("Execution failed: %v", err))
 		return err
 	}
 
@@ -146,7 +145,7 @@ func (s *RuntimeService) executeAlgorithm(ctx context.Context, executionID uint)
 	models.UpdateExecutionResult(s.db, executionID, resultStr)
 
 	// Update execution status to COMPLETED
-	_, err = models.UpdateExecutionStatus(s.db, executionID, "COMPLETED")
+	_, err = models.UpdateExecutionStatus(s.db, executionID, models.EXE_STATUS_COMPLETED)
 
 	return err
 }
@@ -169,13 +168,17 @@ func (s *RuntimeService) recoverPendingExecutions(ctx context.Context) error {
 // fetchAndExtractWorkDir
 func (s *RuntimeService) fetchAndExtractWorkDir(ctx context.Context, cidStr string) (string, error) {
 	// Download tar.gz from IPFS
-	data, err := s.ipfsStore.Download(ctx, cidStr)
+	r, err := s.ipfsStore.DownloadStream(ctx, cidStr)
 	if err != nil {
 		return "", fmt.Errorf("failed to download %s: %w", cidStr, err)
 	}
+	defer r.Close()
+
+	// Create a limited reader to enforce size limit
+	limited := io.LimitReader(r, int64(s.algoScheduler.BuildSizeLimit()))
 
 	// Open gzip reader
-	gzr, err := gzip.NewReader(bytes.NewReader(data))
+	gzr, err := gzip.NewReader(limited)
 	if err != nil {
 		return "", fmt.Errorf("gzip open failed: %w", err)
 	}

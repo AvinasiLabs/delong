@@ -63,7 +63,7 @@ func TestBuildImage(t *testing.T) {
 		t.Fatalf("write Dockerfile: %v", err)
 	}
 
-	s, err := NewAlgoScheduler(1)
+	s, err := NewAlgoScheduler()
 	if err != nil {
 		t.Fatalf("new scheduler: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestRunContainer(t *testing.T) {
 		t.Fatalf("write Dockerfile: %v", err)
 	}
 
-	s, err := NewAlgoScheduler(1)
+	s, err := NewAlgoScheduler()
 	if err != nil {
 		t.Fatalf("new scheduler: %v", err)
 	}
