@@ -1,15 +1,10 @@
-package services
+package api
 
 import (
-	"context"
 	"crypto/sha256"
 	"delong/internal/models"
 	"delong/internal/types"
-	"delong/pkg/analysis"
-	"delong/pkg/contracts"
-	"delong/pkg/db"
 	"delong/pkg/tee"
-	"delong/pkg/ws"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -20,98 +15,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
-
-type ApiService struct {
-	name       string
-	addr       string
-	ctrAddr    map[string]common.Address
-	engine     *gin.Engine
-	httpserver *http.Server
-
-	ipfsStore      *db.IpfsStore
-	minioStore     *db.MinioStore
-	mysqlDb        *gorm.DB
-	ctrCaller      *contracts.ContractCaller
-	keyVault       *tee.KeyVault
-	notifier       *ws.Notifier
-	reportAnalyzer *analysis.ReportAnalyzer
-}
-
-type ApiServiceOptions struct {
-	Addr           string
-	IpfsStore      *db.IpfsStore
-	MinioStore     *db.MinioStore
-	MysqlDb        *gorm.DB
-	CtrCaller      *contracts.ContractCaller
-	KeyVault       *tee.KeyVault
-	Notifier       *ws.Notifier
-	ReportAnalyzer *analysis.ReportAnalyzer
-}
-
-func NewApiService(opts ApiServiceOptions) *ApiService {
-	return &ApiService{
-		name:           "api-service",
-		addr:           opts.Addr,
-		engine:         gin.Default(),
-		ipfsStore:      opts.IpfsStore,
-		minioStore:     opts.MinioStore,
-		mysqlDb:        opts.MysqlDb,
-		ctrCaller:      opts.CtrCaller,
-		keyVault:       opts.KeyVault,
-		notifier:       opts.Notifier,
-		reportAnalyzer: opts.ReportAnalyzer,
-	}
-}
-
-func (s *ApiService) Name() string {
-	return s.name
-}
-
-func (s *ApiService) Init(ctx context.Context) error {
-	// register routes
-	s.engine.GET("/ws", ws.NewHandler(s.notifier.Hub()))
-	apiGroup := s.engine.Group("/api")
-	apiGroup.POST("/report/upload", s.UploadReport)
-	apiGroup.GET("/report/:id", s.GetReports)
-	apiGroup.POST("/algo/submit", s.SubmitAlgo)
-	apiGroup.POST("/algo/vote", s.Vote)
-	return nil
-}
-
-func (s *ApiService) Start(ctx context.Context) error {
-	s.httpserver = &http.Server{
-		Addr:    s.addr,
-		Handler: s.engine,
-	}
-
-	go func() {
-		err := s.httpserver.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
-			log.Printf("Failed to listen: %v", err)
-		}
-	}()
-
-	log.Println("Api service started")
-	<-ctx.Done()
-	log.Println("API service context cancelled, will shut down")
-	return nil
-}
-
-func (s *ApiService) Stop(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	err := s.httpserver.Shutdown(ctx)
-	if err != nil {
-		log.Printf("Failed to shutdown gracefully: %v", err)
-		return err
-	}
-
-	log.Println("Http server shutdown cleanly")
-	return nil
-}
 
 type ReportFile struct {
 	data        []byte
@@ -147,7 +51,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 
 	// Check if this file has already been uploaded (by any user)
 	var existingReport models.TestReport
-	if err := s.mysqlDb.Where("file_hash = ?", originalHashStr).First(&existingReport).Error; err == nil {
+	if err := s.MysqlDb.Where("file_hash = ?", originalHashStr).First(&existingReport).Error; err == nil {
 		// File already exists in the system
 		log.Printf("File with hash %s already exists in the system", originalHashStr)
 		ResponseError(c, REPORT_ALREADY_EXIST)
@@ -155,13 +59,13 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	}
 
 	// Upload encrypted raw report file
-	aesKey, err := s.keyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
+	aesKey, err := s.KeyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
 	if err != nil {
 		log.Printf("Failed to derive symmetric key: %v", err)
 		ResponseError(c, KEY_DERIVE_FAIL)
 		return
 	}
-	cid, err := s.ipfsStore.UploadEncrypted(c, reportFile.data, aesKey)
+	cid, err := s.IpfsStore.UploadEncrypted(c, reportFile.data, aesKey)
 	if err != nil {
 		log.Printf("Failed to upload data: %v", err)
 		ResponseError(c, IPFS_UPLOAD_FAIL)
@@ -170,13 +74,13 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 
 	// Parse raw report file to structured data
 	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.filename)
-	err = s.minioStore.UploadBytes(c, "diagnostic", objName, reportFile.data, reportFile.contentType)
+	err = s.MinioStore.UploadBytes(c, "diagnostic", objName, reportFile.data, reportFile.contentType)
 	if err != nil {
 		log.Printf("Failed to upload file to minio: %v", err)
 		ResponseError(c, MINIO_UPLOAD_FAIL)
 		return
 	}
-	result, err := s.reportAnalyzer.Analyze(c, "minio", reportFile.contentType, objName, userWallet.Hex())
+	result, err := s.ReportAnalyzer.Analyze(c, "minio", reportFile.contentType, objName, userWallet.Hex())
 	if err != nil {
 		log.Printf("Failed to analyze raw report test: %v", err)
 		ResponseError(c, REPORT_ANALYZE_FAIL)
@@ -191,7 +95,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	}
 
 	testReport := raw.ConvertToModel(userWallet.Hex(), originalHashStr, cid, req.Dataset, req.TestTime)
-	dbtx := s.mysqlDb.Begin()
+	dbtx := s.MysqlDb.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			dbtx.Rollback()
@@ -206,7 +110,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		return
 	}
 
-	tx, err := s.ctrCaller.RegisterData(c, userWallet, cid, req.Dataset)
+	tx, err := s.CtrCaller.RegisterData(c, userWallet, cid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to register data on-chain: %v", err)
@@ -259,14 +163,14 @@ func (s *ApiService) SubmitAlgo(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	cid, err := s.ipfsStore.UploadStream(ctx, resp.Body)
+	cid, err := s.IpfsStore.UploadStream(ctx, resp.Body)
 	if err != nil {
 		log.Printf("Failed to upload algorithm to IPFS: %v", err)
 		ResponseError(c, IPFS_UPLOAD_FAIL)
 		return
 	}
 
-	dbtx := s.mysqlDb.Begin()
+	dbtx := s.MysqlDb.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			dbtx.Rollback()
@@ -282,7 +186,7 @@ func (s *ApiService) SubmitAlgo(c *gin.Context) {
 		return
 	}
 
-	tx, err := s.ctrCaller.SubmitAlgorithm(ctx, common.HexToAddress(req.ScientistWallet), cid, req.Dataset)
+	tx, err := s.CtrCaller.SubmitAlgorithm(ctx, common.HexToAddress(req.ScientistWallet), cid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to submit algorithm to blockchain: %v", err)
@@ -322,7 +226,7 @@ func (s *ApiService) Vote(c *gin.Context) {
 		ResponseError(c, BAD_REQUEST)
 		return
 	}
-	_, err = models.CreateTransaction(s.mysqlDb, req.TxHash, 0) // Using 0 as a placeholder; will be updated later by the off-chain listener
+	_, err = models.CreateTransaction(s.MysqlDb, req.TxHash, 0) // Using 0 as a placeholder; will be updated later by the off-chain listener
 	if err != nil {
 		log.Printf("Failed to create blockchain transaction record: %v", err)
 		ResponseData(c, MYSQL_WRITE_FAIL)

@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	ALGO_STATUS_PENDING  string = "PENDING"
 	ALGO_STATUS_APPROVED string = "APPROVED"
 	ALGO_STATUS_REJECTED string = "REJECTED"
 )
@@ -31,6 +32,7 @@ func CreateAlgo(db *gorm.DB, name, link, scientistWallet, cid, dataset string) (
 		AlgoLink:        link,
 		Cid:             cid,
 		UsedDataset:     dataset,
+		Status:          ALGO_STATUS_PENDING,
 	}
 
 	err := db.Create(algo).Error

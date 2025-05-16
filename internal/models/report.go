@@ -3,7 +3,7 @@ package models
 import "time"
 
 // System-defined dataset registry
-type Dataset struct {
+type DatasetRegistry struct {
 	Name        string
 	Title       string
 	Description string

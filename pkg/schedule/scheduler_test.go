@@ -98,7 +98,7 @@ func TestRunContainer(t *testing.T) {
 		t.Fatalf("BuildImage failed: %v", err)
 	}
 
-	out, err := s.RunContainer(ctx, image, nil)
+	out, err := s.RunContainer(ctx, image, nil, nil)
 	if err != nil {
 		t.Fatalf("RunContainer failed: %v", err)
 	}

@@ -17,7 +17,7 @@ const (
 type AlgoExecution struct {
 	ID        uint
 	AlgoID    uint
-	ExeStatus string // QUEUED, RUNNING, COMPLETED, FAILED
+	Status    string // QUEUED, RUNNING, COMPLETED, FAILED
 	StartTime *time.Time
 	EndTime   *time.Time
 	Result    string // Execution output
@@ -31,7 +31,7 @@ func CreateAlgoExecution(db *gorm.DB, algoID uint, status string) (*AlgoExecutio
 	now := time.Now()
 	execution := &AlgoExecution{
 		AlgoID:    algoID,
-		ExeStatus: status,
+		Status:    status,
 		StartTime: &now,
 	}
 
@@ -67,9 +67,23 @@ func UpdateExecutionStatus(db *gorm.DB, executionID uint, status string, errorMs
 	return &execution, nil
 }
 
-// UpdateExecutionResult updates the result of an execution
-func UpdateExecutionResult(db *gorm.DB, executionID uint, result string) error {
-	return db.Model(&AlgoExecution{}).Where("id = ?", executionID).Update("result", result).Error
+// UpdateExecutionCompleted updates the status of an execution to completed and sets the result
+func UpdateExecutionCompleted(db *gorm.DB, executionID uint, result string) (*AlgoExecution, error) {
+	now := time.Now()
+	updates := map[string]any{
+		"status":     EXE_STATUS_COMPLETED,
+		"updated_at": now,
+		"end_time":   now,
+		"result":     result,
+	}
+
+	var execution AlgoExecution
+	err := db.Model(&AlgoExecution{}).Where("id = ?", executionID).Updates(updates).First(&execution).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &execution, nil
 }
 
 // GetPendingExecutions retrieves all executions in QUEUED or RUNNING state
@@ -79,9 +93,9 @@ func GetPendingExecutions(db *gorm.DB) ([]AlgoExecution, error) {
 	return executions, err
 }
 
-// GetExecutionsByAlgoID gets all executions for a specific algorithm
-func GetExecutionsByAlgoID(db *gorm.DB, algoID uint) ([]AlgoExecution, error) {
-	var executions []AlgoExecution
-	err := db.Where("algo_id = ?", algoID).Order("created_at DESC").Find(&executions).Error
-	return executions, err
+// GetExecutionByAlgoID gets the first execution for a specific algorithm
+func GetExecutionByAlgoID(db *gorm.DB, algoID uint) (*AlgoExecution, error) {
+	executions := AlgoExecution{}
+	err := db.Where("algo_id = ?", algoID).Order("created_at DESC").First(&executions).Error
+	return &executions, err
 }

@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"delong/internal"
-	"delong/internal/services"
+	"delong/internal/services/api"
+	"delong/internal/services/chainsync"
+	"delong/internal/services/runtime"
 	"delong/pkg/analysis"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
@@ -78,7 +80,7 @@ func main() {
 		log.Fatalf("Failed to create algo scheduler: %v", err)
 	}
 
-	apiService := services.NewApiService(services.ApiServiceOptions{
+	apiService := api.NewService(api.ApiServiceOptions{
 		Addr:           ":8080",
 		IpfsStore:      ipfsStore,
 		MinioStore:     minioStore,
@@ -89,7 +91,7 @@ func main() {
 		ReportAnalyzer: reportAnalyzer,
 	})
 
-	chainsyncService := services.NewChainsyncService(services.ChainsyncServiceOptions{
+	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{
 		CtrCaller:     ctrCaller,
 		KeyVault:      keyVault,
 		Notifier:      notifier,
@@ -97,12 +99,16 @@ func main() {
 		AlgoScheduler: algoScheduler,
 	})
 
-	runtimeService := services.NewRuntimeService(services.RuntimeServiceOptions{
+	runtimeService := runtime.NewService(runtime.RuntimeServiceOptions{
+		Loader:        runtime.NewDatasetLoader("/data/delong_dataset", mysqlDb),
 		Db:            mysqlDb,
 		IpfsStore:     ipfsStore,
 		CtrCaller:     ctrCaller,
 		AlgoScheduler: algoScheduler,
 	})
+	if err != nil {
+		log.Fatalf("Failed to create runtime service: %v", err)
+	}
 
 	srvMgr := internal.NewServiceManager(apiService, chainsyncService, runtimeService)
 

@@ -9,6 +9,7 @@ import (
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -43,6 +44,7 @@ func WithChannelSize(size int) SchedulerOption {
 	}
 }
 
+// WithBuildSizeLimit sets the maximum size limit for Docker image builds
 func WithBuildSizeLimit(bytes int64) SchedulerOption {
 	return func(s *AlgoScheduler) {
 		if bytes > 0 {
@@ -115,7 +117,7 @@ func (s *AlgoScheduler) BuildImage(ctx context.Context, dirPath, imageName strin
 }
 
 // RunContainer runs a Docker container with the specified image and environment variables
-func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env map[string]string) ([]byte, error) {
+func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env map[string]string, mounts []mount.Mount) ([]byte, error) {
 	log.Printf("Running container with image: %s", imageName)
 
 	// Convert env map to array of KEY=VALUE strings
@@ -128,7 +130,15 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 	resp, err := s.dockerClient.ContainerCreate(
 		ctx,
 		&container.Config{Image: imageName, Env: envArray, Tty: false},
-		&container.HostConfig{Resources: container.Resources{Memory: 1 << 30, NanoCPUs: 1e9}, SecurityOpt: []string{"no-new-privileges"}},
+		&container.HostConfig{
+			Mounts: mounts,
+			// TODO: setup resource
+			Resources: container.Resources{
+				Memory:   1 << 30,
+				NanoCPUs: 1e9,
+			},
+			SecurityOpt: []string{"no-new-privileges"},
+		},
 		nil, nil, "",
 	)
 	if err != nil {
@@ -178,12 +188,11 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 		return nil, fmt.Errorf("failed to read logs: %w", err)
 	}
 
-	combined := append(out.Bytes(), errOut.Bytes()...)
 	if code != 0 {
-		return combined, fmt.Errorf("container exited with %d", code)
+		return errOut.Bytes(), fmt.Errorf("container exited with %d", code)
 	}
 
-	return combined, nil
+	return out.Bytes(), nil
 }
 
 // Close releases resources used by the scheduler

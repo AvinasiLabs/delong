@@ -1,4 +1,4 @@
-package services
+package chainsync
 
 import (
 	"context"
@@ -33,7 +33,7 @@ type ChainsyncServiceOptions struct {
 	AlgoScheduler *schedule.AlgoScheduler
 }
 
-func NewChainsyncService(opts ChainsyncServiceOptions) *ChainsyncService {
+func NewService(opts ChainsyncServiceOptions) *ChainsyncService {
 	return &ChainsyncService{
 		name:          "chainsync-service",
 		notifier:      opts.Notifier,

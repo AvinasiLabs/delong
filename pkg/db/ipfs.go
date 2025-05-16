@@ -107,8 +107,26 @@ func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error)
 		return nil, err
 	}
 	defer r.Close()
-
 	return io.ReadAll(r)
+
+	// data, err := io.ReadAll(r)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // 调试：把下载下来的原始二进制 dump 到 /tmp/ipfs-<cid>.tar.gz
+	// home, err := os.UserHomeDir()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// debugFile := filepath.Join(home, fmt.Sprintf("ipfs-%s.tar.gz", cidStr))
+	// if err := os.WriteFile(debugFile, data, 0644); err != nil {
+	// 	log.Printf("warning: failed to dump IPFS data: %v", err)
+	// } else {
+	// 	log.Printf("wrote raw IPFS archive to %s", debugFile)
+	// }
+
+	// return data, nil
 }
 
 // DownloadStream reads the file with the given CID from IPFS.
