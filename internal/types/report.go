@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+type ReportFile struct {
+	Data        []byte
+	Filename    string
+	ContentType string
+}
+
 type RawReport map[string][]TestResultItem
 
 type TestResultItem struct {

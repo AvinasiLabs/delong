@@ -260,3 +260,28 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 
 	return ctct.SubmitAlgorithm(txOpts, scientistAcc, cid, dataset)
 }
+
+func (c *ContractCaller) SetCommitteeMember(ctx context.Context, memberAcc common.Address, isApproved bool) (*types.Transaction, error) {
+	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Tee eth account: %v", ethAcc.Address)
+
+	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	if err != nil {
+		return nil, err
+	}
+
+	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctct.SetCommitteeMember(txOpts, memberAcc, isApproved)
+}

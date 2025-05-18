@@ -275,6 +275,67 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 	)
 }
 
+func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
+	log.Println("Watching CommitteeMemberUpdated...")
+
+	contracts.WatchEventLoop(
+		ctx,
+		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewCommitteeMemberUpdated) (ethereum.Subscription, error) {
+			ctr, err := contracts.NewAlgorithmReview(
+				s.ctrCaller.AlgoReviewCtrtAddr(),
+				s.ctrCaller.WsClient(),
+			)
+			if err != nil {
+				return nil, err
+			}
+			return ctr.WatchCommitteeMemberUpdated(opts, ch, nil)
+		},
+		func(evt *contracts.AlgorithmReviewCommitteeMemberUpdated) {
+			txHash := evt.Raw.TxHash.Hex()
+			log.Printf("Received event tx=%s", txHash)
+			var status string
+			defer func() {
+				if txHash != "" && status != "" {
+					if err := s.notifier.PushStatus(txHash, status); err != nil {
+						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
+					}
+				}
+			}()
+
+			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			if err != nil {
+				log.Printf("Receipt fetch failed: %v", err)
+				return
+			}
+			// First get block info (needed for both success and failure cases)
+			blockNumber := evt.Raw.BlockNumber
+
+			// We need to fetch the block to get its timestamp
+			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			if err != nil {
+				log.Printf("Failed to fetch block details: %v", err)
+				return
+			}
+
+			blockTime := time.Unix(int64(block.Time()), 0)
+
+			// Determine transaction status based on receipt
+			if receipt.Status != types.ReceiptStatusSuccessful {
+				status = models.TX_STATUS_FAILED
+			} else {
+				status = models.TX_STATUS_CONFIRMED
+			}
+
+			// Update transaction status
+			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			if err != nil {
+				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				return
+			}
+		},
+	)
+}
+
 func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 	log.Println("Watching ")
 	contracts.WatchEventLoop(ctx,

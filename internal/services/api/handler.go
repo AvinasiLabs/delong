@@ -11,26 +11,13 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 )
 
-type ReportFile struct {
-	data        []byte
-	filename    string
-	contentType string
-}
-
-type UploadReportReq struct {
-	UserWallet string    `form:"userWallet" binding:"required,ethwallet"` // hex
-	Dataset    string    `form:"dataset" binding:"required"`
-	TestTime   time.Time `form:"testTime" binding:"required"`
-}
-
 func (s *ApiService) UploadReport(c *gin.Context) {
-	req := UploadReportReq{}
+	req := types.UploadReportReq{}
 	if err := c.ShouldBind(&req); err != nil {
 		log.Printf("Failed to bind request for uploading report: %v", err)
 		ResponseError(c, BAD_REQUEST)
@@ -46,7 +33,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	}
 
 	// Calculate hash of original file for deduplication
-	originalHash := sha256.Sum256(reportFile.data)
+	originalHash := sha256.Sum256(reportFile.Data)
 	originalHashStr := hex.EncodeToString(originalHash[:])
 
 	// Check if this file has already been uploaded (by any user)
@@ -65,7 +52,7 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 		ResponseError(c, KEY_DERIVE_FAIL)
 		return
 	}
-	cid, err := s.IpfsStore.UploadEncrypted(c, reportFile.data, aesKey)
+	cid, err := s.IpfsStore.UploadEncrypted(c, reportFile.Data, aesKey)
 	if err != nil {
 		log.Printf("Failed to upload data: %v", err)
 		ResponseError(c, IPFS_UPLOAD_FAIL)
@@ -73,14 +60,14 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 	}
 
 	// Parse raw report file to structured data
-	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.filename)
-	err = s.MinioStore.UploadBytes(c, "diagnostic", objName, reportFile.data, reportFile.contentType)
+	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.Filename)
+	err = s.MinioStore.UploadBytes(c, "diagnostic", objName, reportFile.Data, reportFile.ContentType)
 	if err != nil {
 		log.Printf("Failed to upload file to minio: %v", err)
 		ResponseError(c, MINIO_UPLOAD_FAIL)
 		return
 	}
-	result, err := s.ReportAnalyzer.Analyze(c, "minio", reportFile.contentType, objName, userWallet.Hex())
+	result, err := s.ReportAnalyzer.Analyze(c, "minio", reportFile.ContentType, objName, userWallet.Hex())
 	if err != nil {
 		log.Printf("Failed to analyze raw report test: %v", err)
 		ResponseError(c, REPORT_ANALYZE_FAIL)
@@ -139,15 +126,9 @@ func (s *ApiService) UploadReport(c *gin.Context) {
 
 func (s *ApiService) GetReports(c *gin.Context) {}
 
-type SubmitAlgoReq struct {
-	ScientistWallet string `json:"scientist_wallet" binding:"required,ethwallet"` // hex
-	Dataset         string `json:"dataset" binding:"required"`
-	AlgoLink        string `json:"algo_link" binding:"required"`
-}
-
 func (s *ApiService) SubmitAlgo(c *gin.Context) {
 	ctx := c.Request.Context()
-	req := SubmitAlgoReq{}
+	req := types.SubmitAlgoReq{}
 	err := c.ShouldBind(&req)
 	if err != nil {
 		log.Printf("Failed to bind request for submitting algorithm: %v", err)
@@ -213,13 +194,8 @@ func (s *ApiService) SubmitAlgo(c *gin.Context) {
 	ResponseData(c, txHash)
 }
 
-type VoteReq struct {
-	AlgoId uint   `json:"algo_id" binding:"required"`
-	TxHash string `json:"tx_hash" binding:"required"`
-}
-
 func (s *ApiService) Vote(c *gin.Context) {
-	req := VoteReq{}
+	req := types.VoteReq{}
 	err := c.ShouldBind(&req)
 	if err != nil {
 		log.Printf("Failed to bind vote request: %v", err)
@@ -236,8 +212,59 @@ func (s *ApiService) Vote(c *gin.Context) {
 	ResponseData(c, req.TxHash)
 }
 
+func (s *ApiService) SetCommitteeMember(c *gin.Context) {
+	req := types.SetCommitteeMemberReq{}
+	err := c.ShouldBind(&req)
+	if err != nil {
+		log.Printf("Failed to bind set committee member request: %v", err)
+		ResponseError(c, BAD_REQUEST)
+		return
+	}
+	memberWallet := common.HexToAddress(req.MemberWallet)
+
+	dbtx := s.MysqlDb.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			dbtx.Rollback()
+			panic(r)
+		}
+	}()
+
+	cm, err := models.CreateOrUpdateCommitteeMember(dbtx, req.MemberWallet, req.IsApproved)
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to create algorithm record: %v", err)
+		ResponseError(c, MYSQL_WRITE_FAIL)
+		return
+	}
+
+	tx, err := s.CtrCaller.SetCommitteeMember(c.Request.Context(), memberWallet, req.IsApproved)
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to set committee member: %v", err)
+		ResponseError(c, ETHEREUM_CALL_FAIL)
+		return
+	}
+
+	_, err = models.CreateTransaction(dbtx, tx.Hash().Hex(), uint(cm.ID))
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to create blockchain transaction record: %v", err)
+		ResponseError(c, MYSQL_WRITE_FAIL)
+		return
+	}
+
+	if err := dbtx.Commit().Error; err != nil {
+		log.Printf("Failed to commit db transaction: %v", err)
+		ResponseError(c, MYSQL_WRITE_FAIL)
+		return
+	}
+
+	ResponseData(c, tx)
+}
+
 // readFile reads a file from the request form data.
-func (s *ApiService) readFile(c *gin.Context, fieldName string) (*ReportFile, error) {
+func (s *ApiService) readFile(c *gin.Context, fieldName string) (*types.ReportFile, error) {
 	fh, err := c.FormFile(fieldName)
 	if err != nil {
 		return nil, err
@@ -265,9 +292,9 @@ func (s *ApiService) readFile(c *gin.Context, fieldName string) (*ReportFile, er
 		return nil, err
 	}
 
-	return &ReportFile{
-		data:        filedata,
-		filename:    fh.Filename,
-		contentType: contentType,
+	return &types.ReportFile{
+		Data:        filedata,
+		Filename:    fh.Filename,
+		ContentType: contentType,
 	}, nil
 }
