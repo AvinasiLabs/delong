@@ -106,7 +106,7 @@ func (c *ContractCaller) EnsureTeeAccountFunded(ctx context.Context, acc *tee.Et
 	if err != nil {
 		return err
 	}
-	log.Printf("Tee eth account balance: %s", WeiToEthString(balanceWei))
+	log.Printf("Tee eth account %v balance: %s", toAddr, WeiToEthString(balanceWei))
 
 	thresholdWei := EthToWei(c.thresholdEth)
 	if balanceWei.Cmp(thresholdWei) >= 0 {
@@ -173,7 +173,7 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 		return err
 	}
 
-	// DataContribution
+	// DataContribution contract
 	addrStr, err := models.GetContractAddress(db, CTRKEY_DATA_CONTRIBUTION)
 	if err != nil {
 		return err
@@ -192,21 +192,24 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 		c.contractAddr.DataContribution = common.HexToAddress(addrStr)
 	}
 
-	// AlgorithmReview
-	// addrStr, _ = model.GetContractAddress(db, CTRKEY_ALGORITHM_REVIEW)
-	// if addrStr == "" {
-	// 	addr, tx, _, err := DeployAlgorithmReview(auth, c.httpClient)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	log.Printf("Deployed AlgorithmReview at %s (tx: %s)", addr.Hex(), tx.Hash().Hex())
-	// 	if err := model.SaveContractAddress(db, CTRKEY_ALGORITHM_REVIEW, addr.Hex()); err != nil {
-	// 		return err
-	// 	}
-	// 	c.contractAddr.AlgorithmReview = addr
-	// } else {
-	// 	c.contractAddr.AlgorithmReview = common.HexToAddress(addrStr)
-	// }
+	// AlgorithmReview contract
+	addrStr, err = models.GetContractAddress(db, CTRKEY_ALGORITHM_REVIEW)
+	if err != nil {
+		return err
+	}
+	if addrStr == "" {
+		addr, tx, _, err := DeployAlgorithmReview(auth, c.httpClient)
+		if err != nil {
+			return err
+		}
+		log.Printf("Deployed AlgorithmReview at %s (tx: %s)", addr.Hex(), tx.Hash().Hex())
+		if err := models.SaveContractAddress(db, CTRKEY_ALGORITHM_REVIEW, addr.Hex()); err != nil {
+			return err
+		}
+		c.contractAddr.AlgorithmReview = addr
+	} else {
+		c.contractAddr.AlgorithmReview = common.HexToAddress(addrStr)
+	}
 
 	return nil
 }
@@ -216,7 +219,6 @@ func (c *ContractCaller) RegisterData(ctx context.Context, userAccount common.Ad
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Tee eth account: %v", ethAcc.Address)
 
 	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
 	if err != nil {
@@ -241,7 +243,6 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Tee eth account: %v", ethAcc.Address)
 
 	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
 	if err != nil {
@@ -261,12 +262,35 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 	return ctct.SubmitAlgorithm(txOpts, scientistAcc, cid, dataset)
 }
 
+func (c *ContractCaller) Resolve(ctx context.Context, algoId uint) (*types.Transaction, error) {
+	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	if err != nil {
+		return nil, err
+	}
+
+	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctct.Resolve(txOpts, big.NewInt(int64(algoId)))
+}
+
 func (c *ContractCaller) SetCommitteeMember(ctx context.Context, memberAcc common.Address, isApproved bool) (*types.Transaction, error) {
 	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Tee eth account: %v", ethAcc.Address)
 
 	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
 	if err != nil {
@@ -284,4 +308,28 @@ func (c *ContractCaller) SetCommitteeMember(ctx context.Context, memberAcc commo
 	}
 
 	return ctct.SetCommitteeMember(txOpts, memberAcc, isApproved)
+}
+
+func (c *ContractCaller) SetVotingDuration(ctx context.Context, duration int64) (*types.Transaction, error) {
+	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	if err != nil {
+		return nil, err
+	}
+
+	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctct.SetVotingDuration(txOpts, big.NewInt(duration))
 }

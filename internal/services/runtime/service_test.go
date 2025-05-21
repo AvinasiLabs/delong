@@ -70,7 +70,8 @@ func TestRuntimeService(t *testing.T) {
 		cid,
 		"blood-basic-panel",
 	)
-	rt.AlgoScheduler.AlgoIdCh <- algo.ID
+
+	rt.AlgoScheduler.ScheduleRun(algo.ID)
 
 	time.Sleep(3 * time.Second)
 	for range 300 {

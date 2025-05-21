@@ -1,13 +1,14 @@
 package ws
 
 import (
+	"log"
 	"sync"
 
 	"github.com/gorilla/websocket"
 )
 
 type Hub struct {
-	mu     sync.RWMutex
+	mu     sync.Mutex
 	conns  map[string]*websocket.Conn // taskID -> conn
 	buffer map[string]any             // taskID -> pending register req (if not yet registered)
 }
@@ -22,28 +23,35 @@ func NewHub() *Hub {
 func (h *Hub) Register(taskID string, conn *websocket.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.conns[taskID] = conn
 
 	if msg, ok := h.buffer[taskID]; ok {
 		conn.WriteJSON(msg)
 		delete(h.buffer, taskID)
+
+		err := conn.Close()
+		if err != nil {
+			log.Printf("Failed to close connection: %v", err)
+		}
+	} else {
+		h.conns[taskID] = conn
 	}
 }
 
-func (h *Hub) Remove(taskID string) {
+func (h *Hub) Notify(taskID string, payload any) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.conns, taskID)
-}
-
-func (h *Hub) Notify(taskID string, payload any) error {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	conn, ok := h.conns[taskID]
 	if ok {
-		return conn.WriteJSON(payload)
+		err := conn.WriteJSON(payload)
+		if err != nil {
+			log.Printf("Failed to write msg: %v", err)
+		}
+		err = conn.Close()
+		if err != nil {
+			log.Printf("Failed to close connection: %v", err)
+		}
+		delete(h.conns, taskID)
 	} else {
 		h.buffer[taskID] = payload
-		return nil
 	}
 }

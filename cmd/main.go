@@ -93,9 +93,8 @@ func main() {
 
 	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{
 		CtrCaller:     ctrCaller,
-		KeyVault:      keyVault,
 		Notifier:      notifier,
-		MysqlDb:       mysqlDb,
+		Db:            mysqlDb,
 		AlgoScheduler: algoScheduler,
 	})
 

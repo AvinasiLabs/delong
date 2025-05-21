@@ -28,3 +28,13 @@ func CreateVote(db *gorm.DB, algoID uint, voter string, approve bool, voteTime t
 	}
 	return vote, nil
 }
+
+func GetVotesByAlgoID(db *gorm.DB, algoID uint) ([]Vote, error) {
+	var votes []Vote
+	err := db.Table("votes").
+		Joins("JOIN blockchain_transactions bt ON bt.entity_id = votes.id").
+		Where("votes.algo_id = ? AND bt.status = ? AND bt.entity_type = ?", algoID, TX_STATUS_CONFIRMED, ENTITY_TYPE_VOTE).
+		Select("votes.*").
+		Find(&votes).Error
+	return votes, err
+}

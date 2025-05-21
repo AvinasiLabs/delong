@@ -21,5 +21,21 @@ type VoteReq struct {
 
 type SetCommitteeMemberReq struct {
 	MemberWallet string `json:"member_wallet" binding:"required,ethwallet"`
-	IsApproved   bool   `json:"is_approved" binding:"required"`
+	IsApproved   *bool  `json:"is_approved" binding:"required"`
+}
+
+type SetVotingDurationReq struct {
+	Duration int64 `json:"duration" binding:"required"` // seconds
+}
+
+// Dataset
+type DatasetCreateReq struct {
+	Name        string `json:"name" binding:"required"`
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description" binding:"required"`
+}
+
+type DatasetUpdateReq struct {
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description" binding:"required"`
 }

@@ -46,6 +46,11 @@ func (s *RuntimeService) Name() string {
 
 func (s *RuntimeService) Init(ctx context.Context) error {
 	var err error
+
+	// Set algo scheduler handler
+	s.AlgoScheduler.SetHandler(s)
+
+	// Ensure dataset volume path exists
 	if err = s.Loader.MustInit(); err != nil {
 		return err
 	}
@@ -66,30 +71,13 @@ func (s *RuntimeService) Start(ctx context.Context) error {
 	log.Println("Starting runtime service...")
 
 	// Start listening for algorithm approval events
-	err := s.runEventLoop(ctx)
-	if err != nil {
-		return err
-	}
+	// err := s.runEventLoop(ctx)
+	// if err != nil {
+	// 	return err
+	// }
 
+	go s.AlgoScheduler.Run(ctx)
 	return nil
-}
-
-func (s *RuntimeService) runEventLoop(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Stopping runtime service")
-			return nil
-		case algoId := <-s.AlgoScheduler.AlgoIdCh:
-			log.Printf("Received approved algorithm ID: %d", algoId)
-			go func() {
-				pctx, cancel := context.WithTimeout(ctx, 1*time.Hour)
-				defer cancel()
-
-				s.process(pctx, algoId)
-			}()
-		}
-	}
 }
 
 func (s *RuntimeService) Stop(ctx context.Context) error {
@@ -97,7 +85,26 @@ func (s *RuntimeService) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (s *RuntimeService) process(ctx context.Context, algoId uint) {
+func (s *RuntimeService) OnResolve(ctx context.Context, algoID uint, resolveAt time.Time) {
+	delay := time.Until(resolveAt)
+	if delay < 0 {
+		delay = time.Second
+	}
+	select {
+	case <-time.After(delay):
+		tx, err := s.CtrCaller.Resolve(ctx, algoID)
+		if err != nil {
+			log.Printf("Resolve failed for algo %d: %v", algoID, err)
+		} else {
+			txHash := tx.Hash().Hex()
+			log.Printf("Resolved algo %d, tx=%s", algoID, txHash)
+		}
+	case <-ctx.Done():
+		log.Printf("Resolve cancelled for algo %d", algoID)
+	}
+}
+
+func (s *RuntimeService) OnRun(ctx context.Context, algoId uint) {
 	execution, err := models.CreateAlgoExecution(s.Db, algoId, models.EXE_STATUS_QUEUED)
 	if err != nil {
 		log.Printf("Failed to create execution record: %v", err)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -18,13 +19,24 @@ import (
 	goarchive "github.com/moby/go-archive"
 )
 
-// AlgoScheduler handles Docker operations for algorithm execution
+// SchedulerHandler defines the callback interface used by AlgoScheduler
+// to handle different types of algorithm execution events.
+type SchedulerHandler interface {
+	OnRun(ctx context.Context, algoID uint)
+	OnResolve(ctx context.Context, algoID uint, resolveAt time.Time)
+}
+
+// AlgoScheduler manages algorithm execution events and Docker-based runtime handling.
+// It receives scheduling events through an internal channel and dispatches them
+// to the registered handler for further processing.
 type AlgoScheduler struct {
-	AlgoIdCh       chan uint
+	eventCh        chan SchedulerEvent
+	handler        SchedulerHandler
 	dockerClient   *client.Client
 	buildSizeLimit int64
 }
 
+// SchedulerOption defines a functional option for configuring AlgoScheduler.
 type SchedulerOption func(*AlgoScheduler)
 
 const (
@@ -35,16 +47,17 @@ const (
 	DEFAULT_BUILD_SIZE_LIMIT = 100 << 20
 )
 
-// WithChannelSize sets the buffer size for the algo ID channel
+// WithChannelSize sets the buffer size for the algo ID channel.
 func WithChannelSize(size int) SchedulerOption {
 	return func(s *AlgoScheduler) {
 		if size > 0 {
-			s.AlgoIdCh = make(chan uint, size)
+			// s.AlgoIdCh = make(chan uint, size)
+			s.eventCh = make(chan SchedulerEvent, size)
 		}
 	}
 }
 
-// WithBuildSizeLimit sets the maximum size limit for Docker image builds
+// WithBuildSizeLimit sets the maximum size limit for Docker image builds.
 func WithBuildSizeLimit(bytes int64) SchedulerOption {
 	return func(s *AlgoScheduler) {
 		if bytes > 0 {
@@ -53,7 +66,8 @@ func WithBuildSizeLimit(bytes int64) SchedulerOption {
 	}
 }
 
-// NewAlgoScheduler creates a new algo scheduler with the specified channel buffer size
+// NewAlgoScheduler creates a new AlgoScheduler instance with optional configuration.
+// It initializes the Docker client and internal event channel.
 func NewAlgoScheduler(opts ...SchedulerOption) (*AlgoScheduler, error) {
 	dockerClient, err := client.NewClientWithOpts(
 		client.FromEnv,
@@ -63,8 +77,9 @@ func NewAlgoScheduler(opts ...SchedulerOption) (*AlgoScheduler, error) {
 		return nil, err
 	}
 	s := &AlgoScheduler{
-		dockerClient:   dockerClient,
-		AlgoIdCh:       make(chan uint, DEFAULT_CHANNEL_SIZE),
+		eventCh:      make(chan SchedulerEvent, DEFAULT_CHANNEL_SIZE),
+		dockerClient: dockerClient,
+		// AlgoIdCh:       make(chan uint, DEFAULT_CHANNEL_SIZE),
 		buildSizeLimit: DEFAULT_BUILD_SIZE_LIMIT,
 	}
 
@@ -75,12 +90,80 @@ func NewAlgoScheduler(opts ...SchedulerOption) (*AlgoScheduler, error) {
 	return s, nil
 }
 
-// BuildSizeLimit returns the maximum size limit for Docker image builds
+// Run starts the event dispatch loop of the scheduler.
+// It listens for incoming scheduling events and delegates handling to the registered handler.
+func (s *AlgoScheduler) Run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("AlgoScheduler shutting down")
+			return
+		case evt := <-s.eventCh:
+			go s.handleEvent(ctx, evt)
+		}
+	}
+}
+
+// handleEvent processes a single SchedulerEvent based on its type.
+// It delegates to the appropriate method in the registered SchedulerHandler.
+func (s *AlgoScheduler) handleEvent(ctx context.Context, evt SchedulerEvent) {
+	if s.handler == nil {
+		log.Printf("No handler set for event %s", evt.Type)
+		return
+	}
+
+	switch evt.Type {
+	case EVENT_TYPE_RUN:
+		s.handler.OnRun(ctx, evt.AlgoID)
+	case EVENT_TYPE_RESOLVE:
+		// unpack resolve_at
+		v, ok := evt.Payload["resolve_at"]
+		if !ok {
+			log.Printf("Missing resolve_at in payload for algo %d", evt.AlgoID)
+			return
+		}
+		resolveAt, ok := v.(time.Time)
+		if !ok {
+			log.Printf("Invalid resolve_at format for algo %d", evt.AlgoID)
+			return
+		}
+		s.handler.OnResolve(ctx, evt.AlgoID, resolveAt)
+	}
+}
+
+// SetHandler registers the event handler implementation for algorithm execution callbacks.
+func (s *AlgoScheduler) SetHandler(handler SchedulerHandler) {
+	s.handler = handler
+}
+
+// ScheduleRun enqueues an EVENT_TYPE_RUN event to trigger container execution.
+func (s *AlgoScheduler) ScheduleRun(algoID uint) {
+	event := SchedulerEvent{
+		Type:   EVENT_TYPE_RUN,
+		AlgoID: algoID,
+	}
+	s.eventCh <- event
+	log.Printf("Run event scheduled for algo %d", algoID)
+}
+
+// ScheduleResolve enqueues an EVENT_TYPE_RESOLVE event to trigger delayed resolution logic.
+func (s *AlgoScheduler) ScheduleResolve(algoID uint, resolveAt time.Time) {
+	event := SchedulerEvent{
+		Type:    EVENT_TYPE_RESOLVE,
+		AlgoID:  algoID,
+		Payload: map[string]any{"resolve_at": resolveAt},
+	}
+	s.eventCh <- event
+	log.Printf("Resolve event scheduled for algo %d", algoID)
+}
+
+// BuildSizeLimit returns the configured maximum Docker build context size.
 func (s *AlgoScheduler) BuildSizeLimit() int64 {
 	return s.buildSizeLimit
 }
 
-// BuildImage builds a Docker image from a directory containing a Dockerfile
+// BuildImage builds a Docker image from the specified source directory.
+// The directory must contain a valid Dockerfile.
 func (s *AlgoScheduler) BuildImage(ctx context.Context, dirPath, imageName string) error {
 	log.Printf("Building Docker image %s from %s", imageName, dirPath)
 
@@ -116,7 +199,8 @@ func (s *AlgoScheduler) BuildImage(ctx context.Context, dirPath, imageName strin
 	return nil
 }
 
-// RunContainer runs a Docker container with the specified image and environment variables
+// RunContainer runs a Docker container based on the specified image, environment, and mounts.
+// It waits for the container to complete and captures its output.
 func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env map[string]string, mounts []mount.Mount) ([]byte, error) {
 	log.Printf("Running container with image: %s", imageName)
 
@@ -195,7 +279,7 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 	return out.Bytes(), nil
 }
 
-// Close releases resources used by the scheduler
+// Close releases resources used by the scheduler, including the Docker client.
 func (s *AlgoScheduler) Close() error {
 	if s.dockerClient != nil {
 		return s.dockerClient.Close()

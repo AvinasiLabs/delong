@@ -42,7 +42,11 @@ func NewHandler(hub *Hub) gin.HandlerFunc {
 		for {
 			_, _, err := conn.ReadMessage()
 			if err != nil {
-				hub.Remove(taskID)
+				_ = conn.Close()
+				hub.mu.Lock()
+				delete(hub.conns, taskID)
+				delete(hub.buffer, taskID)
+				hub.mu.Unlock()
 				return
 			}
 		}

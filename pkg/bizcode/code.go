@@ -1,10 +1,4 @@
-package api
-
-import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
-)
+package bizcode
 
 type Code string
 
@@ -27,10 +21,13 @@ const (
 	IPFS_UPLOAD_FAIL  Code = "IPFS_UPLOAD_FAIL"
 	MINIO_UPLOAD_FAIL Code = "MINIO_UPLOAD_FAIL"
 	MYSQL_WRITE_FAIL  Code = "MYSQL_WRITE_FAIL"
+	MYSQL_READ_FAIL   Code = "MYSQL_READ_FAIL"
 )
 
 const (
 	ETHEREUM_CALL_FAIL Code = "ETHEREUM_CALL_FAIL"
+	RECEIPT_QUERY_FAIL Code = "RECEIPT_RECEIVE_FAIL"
+	BLOCK_QUERY_FAIL   Code = "BLOCK_QUERY_FAIL"
 )
 
 const (
@@ -51,21 +48,3 @@ const (
 const (
 	KEY_DERIVE_FAIL Code = "KEY_DERIVE_FAIL"
 )
-
-type ApiResp struct {
-	Code Code `json:"code,omitempty"`
-	Data any  `json:"data,omitempty"`
-}
-
-func ResponseData(c *gin.Context, data any) {
-	c.JSON(http.StatusOK, ApiResp{
-		Code: SUCCESS,
-		Data: data,
-	})
-}
-
-func ResponseError(c *gin.Context, code Code) {
-	c.JSON(http.StatusOK, ApiResp{
-		Code: code,
-	})
-}

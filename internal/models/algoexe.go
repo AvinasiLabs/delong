@@ -17,11 +17,11 @@ const (
 type AlgoExecution struct {
 	ID        uint
 	AlgoID    uint
-	Status    string // QUEUED, RUNNING, COMPLETED, FAILED
-	StartTime *time.Time
-	EndTime   *time.Time
-	Result    string // Execution output
-	ErrorMsg  string // Error message if failed
+	Status    string     // QUEUED, RUNNING, COMPLETED, FAILED
+	StartTime *time.Time // Container execution duration
+	EndTime   *time.Time // Container execution duration
+	Result    string     // Execution output
+	ErrorMsg  string     // Error message if failed
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

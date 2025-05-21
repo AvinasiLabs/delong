@@ -2,14 +2,6 @@ package models
 
 import "time"
 
-// System-defined dataset registry
-type DatasetRegistry struct {
-	Name        string
-	Title       string
-	Description string
-	CreatedAt   time.Time
-}
-
 // One uploaded report from user
 type TestReport struct {
 	ID           uint

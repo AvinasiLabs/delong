@@ -3,10 +3,11 @@ package chainsync
 import (
 	"context"
 	"delong/internal/models"
+	"delong/pkg/bizcode"
 	"delong/pkg/contracts"
 	"delong/pkg/schedule"
-	"delong/pkg/tee"
 	"delong/pkg/ws"
+	"fmt"
 	"log"
 	"math/big"
 	"time"
@@ -18,28 +19,21 @@ import (
 )
 
 type ChainsyncService struct {
-	name          string
-	notifier      *ws.Notifier
-	ctrCaller     *contracts.ContractCaller
-	db            *gorm.DB
-	algoScheduler *schedule.AlgoScheduler
+	name string
+	ChainsyncServiceOptions
 }
 
 type ChainsyncServiceOptions struct {
 	CtrCaller     *contracts.ContractCaller
-	KeyVault      *tee.KeyVault
 	Notifier      *ws.Notifier
-	MysqlDb       *gorm.DB
+	Db            *gorm.DB
 	AlgoScheduler *schedule.AlgoScheduler
 }
 
 func NewService(opts ChainsyncServiceOptions) *ChainsyncService {
 	return &ChainsyncService{
-		name:          "chainsync-service",
-		notifier:      opts.Notifier,
-		ctrCaller:     opts.CtrCaller,
-		db:            opts.MysqlDb,
-		algoScheduler: opts.AlgoScheduler,
+		name:                    "chainsync-service",
+		ChainsyncServiceOptions: opts,
 	}
 }
 
@@ -48,6 +42,11 @@ func (s *ChainsyncService) Name() string {
 }
 
 func (s *ChainsyncService) Init(ctx context.Context) error {
+	err := s.recoverResolveTasks()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -55,6 +54,7 @@ func (s *ChainsyncService) Start(ctx context.Context) error {
 	go s.listenDataRegistered(ctx)
 	go s.listenAlgoSubmitted(ctx)
 	go s.listenVoteCasted(ctx)
+	go s.listenCommitteeMemberUpdated(ctx)
 	go s.listenAlgoResolved(ctx)
 
 	log.Println("Chainsync service started")
@@ -73,8 +73,8 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 		ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.DataContributionDataRegistered) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewDataContribution(
-				s.ctrCaller.DataContributionCtrtAddr(),
-				s.ctrCaller.WsClient(),
+				s.CtrCaller.DataContributionCtrtAddr(),
+				s.CtrCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -84,33 +84,28 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 		func(evt *contracts.DataContributionDataRegistered) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
-			var status string
-			defer func() {
-				if txHash != "" && status != "" {
-					if err := s.notifier.PushStatus(txHash, status); err != nil {
-						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
-					}
-				}
-			}()
 
-			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
+				s.Notifier.PushError(txHash, bizcode.RECEIPT_QUERY_FAIL)
 				return
 			}
 			// First get block info (needed for both success and failure cases)
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
+				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
 			blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
+			var status string
 			if receipt.Status != types.ReceiptStatusSuccessful {
 				status = models.TX_STATUS_FAILED
 			} else {
@@ -118,11 +113,13 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 			}
 
 			// Update transaction status
-			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			transaction, err := models.UpdateTransactionStatus(s.Db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
+			s.Notifier.PushTxResult(txHash, transaction)
 		},
 	)
 }
@@ -134,8 +131,8 @@ func (s *ChainsyncService) listenAlgoSubmitted(ctx context.Context) {
 		ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewAlgorithmSubmitted) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewAlgorithmReview(
-				s.ctrCaller.AlgoReviewCtrtAddr(),
-				s.ctrCaller.WsClient(),
+				s.CtrCaller.AlgoReviewCtrtAddr(),
+				s.CtrCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -145,44 +142,72 @@ func (s *ChainsyncService) listenAlgoSubmitted(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewAlgorithmSubmitted) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
-			var status string
-			defer func() {
-				if txHash != "" && status != "" {
-					if err := s.notifier.PushStatus(txHash, status); err != nil {
-						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
-					}
-				}
-			}()
 
-			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
+				s.Notifier.PushError(txHash, bizcode.RECEIPT_QUERY_FAIL)
 				return
 			}
 			// First get block info (needed for both success and failure cases)
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
+				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
 			blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
+			var status string
 			if receipt.Status != types.ReceiptStatusSuccessful {
 				status = models.TX_STATUS_FAILED
 			} else {
 				status = models.TX_STATUS_CONFIRMED
 			}
+
+			dbtx := s.Db.Begin()
+			defer func() {
+				if r := recover(); r != nil {
+					dbtx.Rollback()
+					panic(r)
+				}
+			}()
+
 			// Update transaction status
-			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			transaction, err := models.UpdateTransactionStatus(dbtx, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
+				dbtx.Rollback()
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
+
+			// Launch a timer to automatically resolve algorithm voting outcomes
+			if status == models.TX_STATUS_CONFIRMED {
+				startTime := time.Unix(evt.StartTime.Int64(), 0)
+				endTime := time.Unix(evt.EndTime.Int64(), 0)
+				err := models.UpdateAlgoVoteDuration(dbtx, uint(evt.AlgoId.Uint64()), startTime, endTime)
+				if err != nil {
+					dbtx.Rollback()
+					log.Printf("Failed to update algo vote duration: %v", err)
+					s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
+					return
+				}
+				s.AlgoScheduler.ScheduleResolve(uint(evt.AlgoId.Uint64()), endTime)
+			}
+
+			if err = dbtx.Commit().Error; err != nil {
+				log.Printf("Failed to commit transaction status update: %v", err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
+				return
+			}
+
+			s.Notifier.PushTxResult(txHash, transaction)
 		},
 	)
 }
@@ -194,8 +219,8 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 		ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewVoteCasted) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewAlgorithmReview(
-				s.ctrCaller.AlgoReviewCtrtAddr(),
-				s.ctrCaller.WsClient(),
+				s.CtrCaller.AlgoReviewCtrtAddr(),
+				s.CtrCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -205,40 +230,34 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewVoteCasted) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
-			var status string
-			defer func() {
-				if txHash != "" && status != "" {
-					if err := s.notifier.PushStatus(txHash, status); err != nil {
-						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
-					}
-				}
-			}()
-
-			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
+				s.Notifier.PushError(txHash, bizcode.RECEIPT_QUERY_FAIL)
 				return
 			}
 			// First get block info (needed for both success and failure cases)
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
+				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
 			blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
+			var status string
 			if receipt.Status != types.ReceiptStatusSuccessful {
 				status = models.TX_STATUS_FAILED
 			} else {
 				status = models.TX_STATUS_CONFIRMED
 			}
 
-			dbtx := s.db.Begin()
+			dbtx := s.Db.Begin()
 			defer func() {
 				if r := recover(); r != nil {
 					dbtx.Rollback()
@@ -250,6 +269,7 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 			if err := dbtx.Where("tx_hash = ?", txHash).First(&pending).Error; err != nil {
 				dbtx.Rollback()
 				log.Printf("pending tx not found: %v", err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
 				return
 			}
 
@@ -257,20 +277,25 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 			if err != nil {
 				dbtx.Rollback()
 				log.Printf("Failed to create vote: %v", err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
 
-			err = models.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
+			transaction, err := models.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
 			if err != nil {
 				dbtx.Rollback()
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
 
 			if err = dbtx.Commit().Error; err != nil {
 				log.Printf("Failed to commit transaction status update: %v", err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
+
+			s.Notifier.PushTxResult(txHash, transaction)
 		},
 	)
 }
@@ -282,8 +307,8 @@ func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
 		ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewCommitteeMemberUpdated) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewAlgorithmReview(
-				s.ctrCaller.AlgoReviewCtrtAddr(),
-				s.ctrCaller.WsClient(),
+				s.CtrCaller.AlgoReviewCtrtAddr(),
+				s.CtrCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -293,33 +318,28 @@ func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewCommitteeMemberUpdated) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
-			var status string
-			defer func() {
-				if txHash != "" && status != "" {
-					if err := s.notifier.PushStatus(txHash, status); err != nil {
-						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
-					}
-				}
-			}()
 
-			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
+				s.Notifier.PushError(txHash, bizcode.RECEIPT_QUERY_FAIL)
 				return
 			}
 			// First get block info (needed for both success and failure cases)
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
+				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
 			blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
+			var status string
 			if receipt.Status != types.ReceiptStatusSuccessful {
 				status = models.TX_STATUS_FAILED
 			} else {
@@ -327,11 +347,14 @@ func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
 			}
 
 			// Update transaction status
-			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			transaction, err := models.UpdateTransactionStatus(s.Db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
 				return
 			}
+
+			s.Notifier.PushTxResult(txHash, transaction)
 		},
 	)
 }
@@ -341,8 +364,8 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 	contracts.WatchEventLoop(ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewAlgorithmResolved) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewAlgorithmReview(
-				s.ctrCaller.AlgoReviewCtrtAddr(),
-				s.ctrCaller.WsClient(),
+				s.CtrCaller.AlgoReviewCtrtAddr(),
+				s.CtrCaller.WsClient(),
 			)
 			if err != nil {
 				return nil, err
@@ -352,33 +375,28 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewAlgorithmResolved) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
-			var status string
-			defer func() {
-				if txHash != "" && status != "" {
-					if err := s.notifier.PushStatus(txHash, status); err != nil {
-						log.Printf("PushStatus failed: tx=%s, err=%v", txHash, err)
-					}
-				}
-			}()
 
-			receipt, err := s.ctrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
+			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
+				s.Notifier.PushError(txHash, bizcode.RECEIPT_QUERY_FAIL)
 				return
 			}
 			// First get block info (needed for both success and failure cases)
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.ctrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
+				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
 			blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
+			var status string
 			if receipt.Status != types.ReceiptStatusSuccessful {
 				status = models.TX_STATUS_FAILED
 			} else {
@@ -386,34 +404,53 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 			}
 
 			// Update transaction status
-			err = models.UpdateTransactionStatus(s.db, txHash, status, &blockNumber, &blockTime)
+			transaction, err := models.UpdateTransactionStatus(s.Db, txHash, status, &blockNumber, &blockTime)
 			if err != nil {
 				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
 				return
 			}
+
+			s.Notifier.PushTxResult(txHash, transaction)
 
 			algoId := evt.AlgoId.Uint64()
 			if evt.Approved {
 				log.Printf("Algo %d approved, notifying runtime service", algoId)
-				err := models.UpdateAlgoStatus(s.db, uint(algoId), models.ALGO_STATUS_APPROVED)
+				err := models.UpdateAlgoStatus(s.Db, uint(algoId), models.ALGO_STATUS_APPROVED)
 				if err != nil {
 					log.Printf("Failed to update algo status to %s: %v", status, err)
 					return
 				}
 
-				select {
-				case s.algoScheduler.AlgoIdCh <- uint(algoId):
-					log.Printf("Notification sent for algo %d", algoId)
-				default:
-					log.Printf("Algorithm event channel is full, skipping notification for algo %d", algoId)
-				}
+				s.AlgoScheduler.ScheduleRun(uint(algoId))
 			} else {
 				log.Printf("Algo %d rejected", algoId)
-				err := models.UpdateAlgoStatus(s.db, uint(algoId), models.ALGO_STATUS_REJECTED)
+				err := models.UpdateAlgoStatus(s.Db, uint(algoId), models.ALGO_STATUS_REJECTED)
 				if err != nil {
 					log.Printf("Failed to update algo status to %s: %v", status, err)
 					return
 				}
 			}
 		})
+}
+
+func (s *ChainsyncService) recoverResolveTasks() error {
+	log.Println("Recovering unresolved algos...")
+
+	algos, err := models.GetPendingConfirmedAlgos(s.Db)
+	if err != nil {
+		return fmt.Errorf("failed to query unresolved algos: %w", err)
+	}
+
+	now := time.Now()
+	for _, algo := range algos {
+		if algo.EndTime.After(now) {
+			log.Printf("Recovered resolve task for algo %d (endTime = %s)", algo.ID, algo.EndTime)
+			s.AlgoScheduler.ScheduleResolve(algo.ID, algo.EndTime)
+		} else {
+			// TODO resolve immediately
+			log.Printf("Skipped expired resolve for algo %d (endTime = %s)", algo.ID, algo.EndTime)
+		}
+	}
+	return nil
 }

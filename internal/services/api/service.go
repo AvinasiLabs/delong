@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gin-gonic/contrib/rest"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -22,14 +23,6 @@ type ApiService struct {
 	ctrAddr    map[string]common.Address
 	engine     *gin.Engine
 	httpserver *http.Server
-
-	// ipfsStore      *db.IpfsStore
-	// minioStore     *db.MinioStore
-	// mysqlDb        *gorm.DB
-	// ctrCaller      *contracts.ContractCaller
-	// keyVault       *tee.KeyVault
-	// notifier       *ws.Notifier
-	// reportAnalyzer *analysis.ReportAnalyzer
 
 	ApiServiceOptions
 }
@@ -61,13 +54,26 @@ func (s *ApiService) Name() string {
 }
 
 func (s *ApiService) Init(ctx context.Context) error {
-	// register routes
+	// Register routes
 	s.engine.GET("/ws", ws.NewHandler(s.Notifier.Hub()))
 	apiGroup := s.engine.Group("/api")
-	apiGroup.POST("/report/upload", s.UploadReport)
-	apiGroup.GET("/report/:id", s.GetReports)
-	apiGroup.POST("/algo/submit", s.SubmitAlgo)
-	apiGroup.POST("/algo/vote", s.Vote)
+
+	datasets := &DatasetResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/datasets", datasets)
+
+	testReports := &TestReportResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/reports", testReports)
+
+	algos := &AlgoResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/algos", algos)
+
+	committee := &CommitteeResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/committee", committee)
+
+	votes := &VoteResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/votes", votes)
+	apiGroup.POST("/set-voting-duration", votes.SetVotingDuration)
+
 	return nil
 }
 
