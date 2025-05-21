@@ -9,16 +9,16 @@ import (
 type DatasetRegistry struct {
 	ID          int
 	Name        string
-	Title       string
+	UiName      string
 	Description string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
-func CreateDataset(db *gorm.DB, name, title, desc string) (*DatasetRegistry, error) {
+func CreateDataset(db *gorm.DB, name, uiName, desc string) (*DatasetRegistry, error) {
 	dataset := DatasetRegistry{
 		Name:        name,
-		Title:       title,
+		UiName:      uiName,
 		Description: desc,
 	}
 	err := db.Create(&dataset).Error
@@ -53,19 +53,19 @@ func GetDatasetByID(db *gorm.DB, id uint) (*DatasetRegistry, error) {
 	return &dataset, err
 }
 
-func UpdateDataset(db *gorm.DB, id uint, title, desc string) (*DatasetRegistry, error) {
-	var dataset DatasetRegistry
-	if err := db.First(&dataset, id).Error; err != nil {
+func UpdateDataset(db *gorm.DB, id uint, uiName, desc string) (*DatasetRegistry, error) {
+	updates := map[string]any{
+		"ui_name":     uiName,
+		"description": desc,
+	}
+	err := db.Model(&DatasetRegistry{}).Where("id = ?", id).Updates(updates).Error
+	if err != nil {
 		return nil, err
 	}
 
-	dataset.Title = title
-	dataset.Description = desc
-	if err := db.Save(&dataset).Error; err != nil {
-		return nil, err
-	}
-
-	return &dataset, nil
+	dataset := DatasetRegistry{}
+	err = db.First(&dataset, id).Error
+	return &dataset, err
 }
 
 func DeleteDataset(db *gorm.DB, id uint) error {

@@ -31,11 +31,11 @@ type SetVotingDurationReq struct {
 // Dataset
 type DatasetCreateReq struct {
 	Name        string `json:"name" binding:"required"`
-	Title       string `json:"title" binding:"required"`
+	UiName      string `json:"ui_name" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 
 type DatasetUpdateReq struct {
-	Title       string `json:"title" binding:"required"`
+	UiName      string `json:"ui_name" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
