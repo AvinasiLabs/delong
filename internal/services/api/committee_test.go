@@ -54,11 +54,10 @@ func waitForWsConfirmation(t *testing.T, txHash string, timeout time.Duration) [
 	}
 }
 
-func TestCommitteeMemberCreate(t *testing.T) {
-	is_approved := true
+func setCommitteeMember(t *testing.T, wallet string, isApproved bool) {
 	body := types.SetCommitteeMemberReq{
-		MemberWallet: TEST_MEMEBR_WALLET,
-		IsApproved:   &is_approved,
+		MemberWallet: wallet,
+		IsApproved:   &isApproved,
 	}
 	jsonBody, _ := json.Marshal(body)
 
@@ -94,8 +93,11 @@ func TestCommitteeMemberCreate(t *testing.T) {
 		t.Fatalf("Unexpected data format: %T", apiResp.Data)
 	}
 
-	msg := waitForWsConfirmation(t, txHash, 10*time.Second)
-	t.Logf("Received msg: %v", string(msg))
+	_ = waitForWsConfirmation(t, txHash, 10*time.Second)
+}
+
+func TestCommitteeMemberCreate(t *testing.T) {
+	setCommitteeMember(t, TEST_MEMEBR_WALLET, true)
 }
 
 func TestCommitteeMembersList(t *testing.T) {

@@ -45,11 +45,15 @@ func GetTransactionByHash(db *gorm.DB, txHash string) (*BlockchainTransaction, e
 
 // CreateTransaction creates a new blockchain transaction record
 func CreateTransaction(db *gorm.DB, txHash string, entityID uint, entityType string) (*BlockchainTransaction, error) {
+	return CreateTransactionWithStatus(db, txHash, entityID, entityType, TX_STATUS_PENDING)
+}
+
+func CreateTransactionWithStatus(db *gorm.DB, txHash string, entityID uint, entityType string, status string) (*BlockchainTransaction, error) {
 	tx := &BlockchainTransaction{
 		TxHash:     txHash,
 		EntityID:   entityID,
 		EntityType: entityType,
-		Status:     TX_STATUS_PENDING,
+		Status:     status,
 	}
 
 	err := db.Create(tx).Error
@@ -60,31 +64,31 @@ func CreateTransaction(db *gorm.DB, txHash string, entityID uint, entityType str
 }
 
 // UpdateTransactionEntity updates both the EntityID and Status
-func UpdateTransactionEntity(db *gorm.DB, txHash string, entityID uint, status string, blockNumber *uint64, blockTime *time.Time) (*BlockchainTransaction, error) {
-	updates := map[string]any{
-		"entity_id": entityID,
-		"status":    status,
-	}
-	if blockNumber != nil {
-		updates["block_number"] = blockNumber
-	}
-	if blockTime != nil {
-		updates["block_timestamp"] = blockTime
-	}
-	err := db.Model(&BlockchainTransaction{}).
-		Where("tx_hash = ?", txHash).
-		Updates(updates).
-		Error
-	if err != nil {
-		return nil, err
-	}
+// func UpdateTransactionEntity(db *gorm.DB, txHash string, entityID uint, status string, blockNumber *uint64, blockTime *time.Time) (*BlockchainTransaction, error) {
+// 	updates := map[string]any{
+// 		"entity_id": entityID,
+// 		"status":    status,
+// 	}
+// 	if blockNumber != nil {
+// 		updates["block_number"] = blockNumber
+// 	}
+// 	if blockTime != nil {
+// 		updates["block_timestamp"] = blockTime
+// 	}
+// 	err := db.Model(&BlockchainTransaction{}).
+// 		Where("tx_hash = ?", txHash).
+// 		Updates(updates).
+// 		Error
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var tx BlockchainTransaction
-	if err := db.Where("tx_hash = ?", txHash).First(&tx).Error; err != nil {
-		return nil, err
-	}
-	return &tx, nil
-}
+// 	var tx BlockchainTransaction
+// 	if err := db.Where("tx_hash = ?", txHash).First(&tx).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	return &tx, nil
+// }
 
 // UpdateTransactionStatus updates the status of a transaction
 func UpdateTransactionStatus(db *gorm.DB, txHash string, status string, blockNumber *uint64, blockTime *time.Time) (*BlockchainTransaction, error) {

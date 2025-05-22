@@ -191,7 +191,7 @@ func (s *ChainsyncService) listenAlgoSubmitted(ctx context.Context) {
 			if status == models.TX_STATUS_CONFIRMED {
 				startTime := time.Unix(evt.StartTime.Int64(), 0)
 				endTime := time.Unix(evt.EndTime.Int64(), 0)
-				err := models.UpdateAlgoVoteDuration(dbtx, uint(evt.AlgoId.Uint64()), startTime, endTime)
+				err := models.UpdateAlgoVoteDuration(dbtx, uint(evt.AlgoId.Uint64()), &startTime, &endTime)
 				if err != nil {
 					dbtx.Rollback()
 					log.Printf("Failed to update algo vote duration: %v", err)
@@ -265,13 +265,13 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 				}
 			}()
 
-			var pending models.BlockchainTransaction
-			if err := dbtx.Where("tx_hash = ?", txHash).First(&pending).Error; err != nil {
-				dbtx.Rollback()
-				log.Printf("pending tx not found: %v", err)
-				s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
-				return
-			}
+			// var pending models.BlockchainTransaction
+			// if err := dbtx.Where("tx_hash = ?", txHash).First(&pending).Error; err != nil {
+			// 	dbtx.Rollback()
+			// 	log.Printf("pending tx not found: %v", err)
+			// 	s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
+			// 	return
+			// }
 
 			vote, err := models.CreateVote(dbtx, uint(evt.AlgoId.Uint64()), evt.Voter.Hex(), evt.Approved, blockTime)
 			if err != nil {
@@ -281,13 +281,21 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 				return
 			}
 
-			transaction, err := models.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
+			transaction, err := models.CreateTransactionWithStatus(dbtx, txHash, vote.ID, models.ENTITY_TYPE_VOTE, status)
 			if err != nil {
 				dbtx.Rollback()
-				log.Printf("Failed to update transaction status to %s: %v", status, err)
+				log.Printf("Failed to create transaction: %v", err)
 				s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
 				return
 			}
+
+			// transaction, err := models.UpdateTransactionEntity(dbtx, txHash, vote.ID, status, &blockNumber, &blockTime)
+			// if err != nil {
+			// 	dbtx.Rollback()
+			// 	log.Printf("Failed to update transaction status to %s: %v", status, err)
+			// 	s.Notifier.PushError(txHash, bizcode.MYSQL_WRITE_FAIL)
+			// 	return
+			// }
 
 			if err = dbtx.Commit().Error; err != nil {
 				log.Printf("Failed to commit transaction status update: %v", err)
@@ -444,9 +452,14 @@ func (s *ChainsyncService) recoverResolveTasks() error {
 
 	now := time.Now()
 	for _, algo := range algos {
+		if algo.EndTime == nil {
+			log.Printf("Skip unresolved algo %d: missing end time", algo.ID)
+			continue
+		}
+
 		if algo.EndTime.After(now) {
 			log.Printf("Recovered resolve task for algo %d (endTime = %s)", algo.ID, algo.EndTime)
-			s.AlgoScheduler.ScheduleResolve(algo.ID, algo.EndTime)
+			s.AlgoScheduler.ScheduleResolve(algo.ID, *algo.EndTime)
 		} else {
 			// TODO resolve immediately
 			log.Printf("Skipped expired resolve for algo %d (endTime = %s)", algo.ID, algo.EndTime)

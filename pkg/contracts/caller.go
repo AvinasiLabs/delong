@@ -77,6 +77,10 @@ func (c *ContractCaller) WsClient() *ethclient.Client {
 	return c.wsClient
 }
 
+func (c *ContractCaller) ChainId() *big.Int {
+	return c.chainId
+}
+
 func (c *ContractCaller) DataContributionCtrtAddr() common.Address {
 	return c.contractAddr.DataContribution
 }
@@ -99,9 +103,8 @@ func WeiToEthString(wei *big.Int) string {
 	return f.Text('f', 6)
 }
 
-func (c *ContractCaller) EnsureTeeAccountFunded(ctx context.Context, acc *tee.EthereumAccount) error {
-	toAddr := common.HexToAddress(acc.Address)
-
+func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) error {
+	toAddr := common.HexToAddress(toFund)
 	balanceWei, err := c.httpClient.BalanceAt(ctx, toAddr, nil)
 	if err != nil {
 		return err
@@ -163,7 +166,7 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 		return err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return err
 	}
@@ -220,7 +223,7 @@ func (c *ContractCaller) RegisterData(ctx context.Context, userAccount common.Ad
 		return nil, err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +247,7 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 		return nil, err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +271,7 @@ func (c *ContractCaller) Resolve(ctx context.Context, algoId uint) (*types.Trans
 		return nil, err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +295,7 @@ func (c *ContractCaller) SetCommitteeMember(ctx context.Context, memberAcc commo
 		return nil, err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +319,7 @@ func (c *ContractCaller) SetVotingDuration(ctx context.Context, duration int64) 
 		return nil, err
 	}
 
-	err = c.EnsureTeeAccountFunded(ctx, ethAcc)
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
 		return nil, err
 	}

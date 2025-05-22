@@ -1,7 +1,10 @@
 package api
 
 import (
+	"fmt"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,4 +35,20 @@ func parsePageParams(c *gin.Context) (int, int) {
 		}
 	}
 	return page, pageSize
+}
+
+// extractRepoName extracts the "owner/repo" portion from a github repository download URL.
+func extractRepoName(link string) (string, error) {
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Example path: /lilhammer111/algo-demo/tar.gz/c73e8d62...
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("unexpected path structure: %s", parsed.Path)
+	}
+
+	return parts[0] + "/" + parts[1], nil
 }

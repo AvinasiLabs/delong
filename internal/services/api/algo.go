@@ -28,6 +28,13 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
+	repo, err := extractRepoName(req.AlgoLink)
+	if err != nil {
+		log.Printf("Failed to extract repo name from algo link: %v", err)
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
+		return
+	}
+
 	resp, err := http.Get(req.AlgoLink)
 	if err != nil {
 		log.Printf("Failed to open algorithm link: %v", err)
@@ -51,7 +58,7 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 		}
 	}()
 
-	algo, err := models.CreateAlgo(dbtx, "", req.AlgoLink, req.ScientistWallet, cid, req.Dataset)
+	algo, err := models.CreateAlgo(dbtx, repo, req.AlgoLink, req.ScientistWallet, cid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to create algorithm record: %v", err)

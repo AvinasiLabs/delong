@@ -14,23 +14,23 @@ type VoteResource struct {
 	ApiServiceOptions
 }
 
-func (r *VoteResource) CreateHandler(c *gin.Context) {
-	req := types.VoteReq{}
-	err := c.ShouldBind(&req)
-	if err != nil {
-		log.Printf("Failed to bind vote request: %v", err)
-		responser.ResponseError(c, bizcode.BAD_REQUEST)
-		return
-	}
-	_, err = models.CreateTransaction(r.MysqlDb, req.TxHash, 0, models.ENTITY_TYPE_VOTE) // Using 0 as a placeholder; will be updated later by the off-chain listener
-	if err != nil {
-		log.Printf("Failed to create blockchain transaction record: %v", err)
-		responser.ResponseData(c, bizcode.MYSQL_WRITE_FAIL)
-		return
-	}
+// func (r *VoteResource) CreateHandler(c *gin.Context) {
+// 	req := types.VoteReq{}
+// 	err := c.ShouldBind(&req)
+// 	if err != nil {
+// 		log.Printf("Failed to bind vote request: %v", err)
+// 		responser.ResponseError(c, bizcode.BAD_REQUEST)
+// 		return
+// 	}
+// 	_, err = models.CreateTransaction(r.MysqlDb, req.TxHash, 0, models.ENTITY_TYPE_VOTE) // Using 0 as a placeholder; will be updated later by the off-chain listener
+// 	if err != nil {
+// 		log.Printf("Failed to create blockchain transaction record: %v", err)
+// 		responser.ResponseData(c, bizcode.MYSQL_WRITE_FAIL)
+// 		return
+// 	}
 
-	responser.ResponseData(c, req.TxHash)
-}
+// 	responser.ResponseData(c, req.TxHash)
+// }
 
 func (r *VoteResource) ListHandler(c *gin.Context) {
 	var algoId uint

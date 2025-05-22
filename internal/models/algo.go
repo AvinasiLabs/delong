@@ -19,9 +19,9 @@ type Algo struct {
 	AlgoLink        string
 	Cid             string
 	UsedDataset     string
-	Status          string    // enum: PENDING, APPROVED, REJECTED
-	StartTime       time.Time // vote duration
-	EndTime         time.Time // vote duration
+	Status          string     // enum: PENDING, APPROVED, REJECTED
+	StartTime       *time.Time // vote duration
+	EndTime         *time.Time // vote duration
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -56,8 +56,7 @@ func GetConfirmedAlgos(db *gorm.DB, page, pageSize int) ([]Algo, int64, error) {
 	var algos []Algo
 	var total int64
 
-	tx := db.Table("algos").
-		Select("algos.*").
+	tx := db.Model(&Algo{}).
 		Joins("JOIN blockchain_transactions bt ON bt.entity_id = algos.id").
 		Where("bt.status = ? AND bt.entity_type = ?", TX_STATUS_CONFIRMED, ENTITY_TYPE_ALGO)
 
@@ -71,12 +70,15 @@ func GetConfirmedAlgos(db *gorm.DB, page, pageSize int) ([]Algo, int64, error) {
 }
 
 // UpdateAlgoVoteDuration updates start time and end time after onchain event log received
-func UpdateAlgoVoteDuration(db *gorm.DB, id uint, startTime time.Time, endTime time.Time) error {
-	algo := &Algo{ID: id}
-	updates := map[string]time.Time{
-		"start_time": startTime,
-		"end_time":   endTime,
+func UpdateAlgoVoteDuration(db *gorm.DB, id uint, startTime *time.Time, endTime *time.Time) error {
+	updates := map[string]any{}
+	if startTime != nil {
+		updates["start_time"] = startTime
 	}
+	if endTime != nil {
+		updates["end_time"] = endTime
+	}
+	algo := &Algo{ID: id}
 	err := db.Model(algo).Updates(updates).Error
 	if err != nil {
 		return err

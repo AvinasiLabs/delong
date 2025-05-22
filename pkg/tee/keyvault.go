@@ -15,7 +15,7 @@ import (
 
 type EthereumAccount struct {
 	PrivateKey *ecdsa.PrivateKey
-	Address    string
+	Address    string // hex string
 }
 
 type KeyVault struct {
