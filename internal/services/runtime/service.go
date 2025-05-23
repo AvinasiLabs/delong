@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/mount"
+	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 )
 
 type RuntimeService struct {
 	name string
-
 	RuntimeServiceOptions
 }
 
@@ -85,59 +85,116 @@ func (s *RuntimeService) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (s *RuntimeService) OnResolve(ctx context.Context, algoID uint, resolveAt time.Time) {
+func (s *RuntimeService) OnError(executionID uint, err error) {
+	log.Printf("Failed to run algo, executionId=%d, err=%v", executionID, err.Error())
+	_, err = models.UpdateExecutionStatus(s.Db, executionID, models.EXE_STATUS_FAILED)
+	if err != nil {
+		log.Printf("Failed to update exe status: %v", err)
+	}
+}
+
+func (s *RuntimeService) OnCompleted(ctx context.Context, executionID uint, success bool, output []byte, errmsg []byte) {
+	var err error
+	var algoExe *models.AlgoExe
+	if success {
+		log.Printf("Execution %d completed successfully, algorithm ran without errors", executionID)
+		algoExe, err = models.UpdateExecutionCompleted(s.Db, executionID, string(output))
+	} else {
+		log.Printf("Execution %d completed, but algorithm reported failure", executionID)
+		algoExe, err = models.UpdateExecutionCompleted(s.Db, executionID, string(output), string(errmsg))
+	}
+	if err != nil {
+		log.Printf("Failed to update execution result: %v", err)
+		return
+	}
+
+	algo, err := models.GetAlgoByID(s.Db, algoExe.AlgoID)
+	if err != nil {
+		log.Printf("Failed to get algo by id: %v", err)
+		return
+	}
+	usedAtUnix := time.Now().Unix()
+	dbtx := s.Db.Begin()
+	usage, err := models.CreateDataUsage(dbtx, algoExe.ScientistWallet, algo.Cid, algoExe.UsedDataset, usedAtUnix)
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to create data usage record: %v", err)
+		return
+	}
+
+	tx, err := s.CtrCaller.RecordUsage(ctx, common.HexToAddress(algoExe.ScientistWallet), algo.Cid, algoExe.UsedDataset, usedAtUnix)
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to call RecordUsage: %v", err)
+		return
+	}
+
+	_, err = models.CreateTransaction(dbtx, tx.Hash().Hex(), usage.ID, models.ENTITY_TYPE_DATAUSAGE)
+	if err != nil {
+		dbtx.Rollback()
+		log.Printf("Failed to create block transaction: %v", err)
+		return
+	}
+
+	if err := dbtx.Commit().Error; err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+	}
+}
+
+func (s *RuntimeService) OnResolve(ctx context.Context, exeId uint, algoCid string, resolveAt time.Time) {
 	delay := time.Until(resolveAt)
-	if delay < 0 {
+	if delay <= 0 {
 		delay = time.Second
 	}
 	select {
 	case <-time.After(delay):
-		tx, err := s.CtrCaller.Resolve(ctx, algoID)
+		tx, err := s.CtrCaller.Resolve(ctx, algoCid, exeId)
 		if err != nil {
-			log.Printf("Resolve failed for algo %d: %v", algoID, err)
+			log.Printf("Resolve failed for algo %v: %v", algoCid, err)
 		} else {
 			txHash := tx.Hash().Hex()
-			log.Printf("Resolved algo %d, tx=%s", algoID, txHash)
+			log.Printf("Resolved algo %v, tx=%v", algoCid, txHash)
 		}
 	case <-ctx.Done():
-		log.Printf("Resolve cancelled for algo %d", algoID)
+		log.Printf("Resolve cancelled for algo %v", algoCid)
 	}
 }
 
-func (s *RuntimeService) OnRun(ctx context.Context, algoId uint) {
-	execution, err := models.CreateAlgoExecution(s.Db, algoId, models.EXE_STATUS_QUEUED)
-	if err != nil {
-		log.Printf("Failed to create execution record: %v", err)
-		return
-	}
+func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
+	var (
+		exeID   uint
+		success bool
+		output  []byte
+		errmsg  []byte
+		err     error
+	)
+	defer func() {
+		if err != nil {
+			s.OnError(exeID, err)
+		} else {
+			s.OnCompleted(ctx, exeID, success, output, errmsg)
+		}
+	}()
 
 	// TODO: minitor hardware resource
-	execution, err = models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_RUNNING)
+	execution, err := models.UpdateExecutionStatus(s.Db, exeID, models.EXE_STATUS_RUNNING)
 	if err != nil {
-		log.Printf("Failed to update execution status: %v", err)
 		return
 	}
 
-	// Get algorithm details
+	// Get algorithm cid and download algorithm from IPFS and create temporary working directory
 	algo, err := models.GetAlgoByID(s.Db, execution.AlgoID)
 	if err != nil {
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Algorithm not found")
 		return
 	}
-
-	// Download algorithm from IPFS and create temporary working directory
 	workDir, err := s.fetchAndExtractWorkDir(ctx, algo.Cid)
 	if err != nil {
-		log.Printf("Failed to fetch algorithm from IPFS: %v", err)
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Failed to prepare work dir")
 		return
 	}
 	defer os.RemoveAll(workDir)
 
 	// Verify Dockerfile exists
 	if _, err := os.Stat(filepath.Join(workDir, "Dockerfile")); os.IsNotExist(err) {
-		log.Println("Dockerfile was not found in algorithm source code")
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Dockerfile not found")
 		return
 	}
 
@@ -146,19 +203,19 @@ func (s *RuntimeService) OnRun(ctx context.Context, algoId uint) {
 	log.Printf("Building image %s", imageName)
 	err = s.AlgoScheduler.BuildImage(ctx, workDir, imageName)
 	if err != nil {
-		log.Printf("Failed to build image: %v", err)
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Image build failed")
+		// log.Printf("Failed to build image: %v", err)
+		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Image build failed")
 		return
 	}
 
 	// Acquire current version of dataset used by algorithm
-	path, version, err := s.Loader.AcquireCurrent(algo.UsedDataset)
+	path, version, err := s.Loader.AcquireCurrent(execution.UsedDataset)
 	if err != nil {
-		log.Printf("Failed to acquire current dataset:%v", err)
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Failed to acquire dataset")
+		// log.Printf("Failed to acquire current dataset:%v", err)
+		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Failed to acquire dataset")
 		return
 	}
-	defer s.Loader.Release(algo.UsedDataset, version)
+	defer s.Loader.Release(execution.UsedDataset, version)
 
 	// Build docker environment variables and mounts
 	env := map[string]string{
@@ -174,31 +231,31 @@ func (s *RuntimeService) OnRun(ctx context.Context, algoId uint) {
 	}
 
 	// Run algorithm container
-	log.Printf("Running algorithm container for dataset %s", algo.UsedDataset)
-	output, err := s.AlgoScheduler.RunContainer(ctx, imageName, env, mounts)
+	log.Printf("Running algorithm container for dataset %s", execution.UsedDataset)
+	output, errmsg, success, err = s.AlgoScheduler.RunContainer(ctx, imageName, env, mounts)
 	if err != nil {
-		log.Printf("Failed to run algorithm container: %v", err)
-		models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, fmt.Sprintf("Execution failed: %v", err))
+		// log.Printf("Failed to run algorithm container: %v", err)
+		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, fmt.Sprintf("Execution failed: %v", err))
 		return
 	}
 
 	// Otherwise save results
-	resultStr := string(output)
-	log.Printf("Algorithm execution completed with output length: %d bytes", len(resultStr))
-	models.UpdateExecutionCompleted(s.Db, execution.ID, resultStr)
+	// resultStr := string(output)
+	// log.Printf("Algorithm execution completed with output length: %d bytes", len(resultStr))
+	// models.UpdateExecutionCompleted(s.Db, execution.ID, resultStr)
 }
 
 // recoverPendingExecutions retries any algorithms that were in progress when service stopped
 func (s *RuntimeService) recoverPendingExecutions(ctx context.Context) error {
-	// executions, err := model.GetPendingExecutions(s.Db)
-	// if err != nil {
-	// 	return err
-	// }
+	algoExes, err := models.GetPendingAlgoExesConfirmed(s.Db)
+	if err != nil {
+		return err
+	}
 
-	// for _, exec := range executions {
-	// 	log.Printf("Recovering execution %d for algorithm %d", exec.ID, exec.AlgoID)
-	// 	s.scheduleAlgorithm(ctx, exec.AlgoID)
-	// }
+	for _, exe := range algoExes {
+		log.Printf("Recovering execution %d", exe.ID)
+		s.AlgoScheduler.ScheduleRun(exe.ID)
+	}
 
 	return nil
 }

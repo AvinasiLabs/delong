@@ -62,20 +62,22 @@ func TestRuntimeService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to upload algorithm to IPFS: %v", err)
 	}
+
+	testRepo := "lilhammer111/algo-demo"
+
 	algo, err := models.CreateAlgo(
 		mysqlConn,
-		"demo-python",
+		testRepo,
 		testAlgoLink,
-		"0x123123123123",
 		cid,
-		"blood-basic-panel",
 	)
 
-	rt.AlgoScheduler.ScheduleRun(algo.ID)
+	algoExe, err := models.CreateAlgoExecution(mysqlConn, algo.ID, "TEST_DATASET", "TEST_SCIENTIST")
+	rt.AlgoScheduler.ScheduleRun(algoExe.ID)
 
 	time.Sleep(3 * time.Second)
 	for range 300 {
-		exe, err := models.GetExecutionByAlgoID(mysqlConn, algo.ID)
+		exe, err := models.GetAlgoExeById(mysqlConn, algoExe.ID)
 		if err == nil && exe.Status == models.EXE_STATUS_COMPLETED {
 			t.Logf("Execution completed! Result:\n%s", exe.Result)
 			return

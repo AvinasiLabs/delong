@@ -22,8 +22,10 @@ import (
 // SchedulerHandler defines the callback interface used by AlgoScheduler
 // to handle different types of algorithm execution events.
 type SchedulerHandler interface {
-	OnRun(ctx context.Context, algoID uint)
-	OnResolve(ctx context.Context, algoID uint, resolveAt time.Time)
+	OnResolve(ctx context.Context, exeId uint, algoCid string, resolveAt time.Time)
+	OnRun(ctx context.Context, exeId uint)
+	OnCompleted(ctx context.Context, exeId uint, success bool, output []byte, errmsg []byte)
+	OnError(exeId uint, err error)
 }
 
 // AlgoScheduler manages algorithm execution events and Docker-based runtime handling.
@@ -114,20 +116,30 @@ func (s *AlgoScheduler) handleEvent(ctx context.Context, evt SchedulerEvent) {
 
 	switch evt.Type {
 	case EVENT_TYPE_RUN:
-		s.handler.OnRun(ctx, evt.AlgoID)
+		s.handler.OnRun(ctx, evt.ExecutionId)
 	case EVENT_TYPE_RESOLVE:
 		// unpack resolve_at
 		v, ok := evt.Payload["resolve_at"]
 		if !ok {
-			log.Printf("Missing resolve_at in payload for algo %d", evt.AlgoID)
+			log.Printf("Missing resolve_at in payload for execution task %d", evt.ExecutionId)
 			return
 		}
 		resolveAt, ok := v.(time.Time)
 		if !ok {
-			log.Printf("Invalid resolve_at format for algo %d", evt.AlgoID)
+			log.Printf("Invalid resolve_at format for execution task %d", evt.ExecutionId)
 			return
 		}
-		s.handler.OnResolve(ctx, evt.AlgoID, resolveAt)
+
+		v, ok = evt.Payload["algo_cid"]
+		if !ok {
+			log.Printf("Missing algo_cid in payload for execution task %d", evt.ExecutionId)
+		}
+		algoCid, ok := v.(string)
+		if !ok {
+			log.Printf("Invalid algo_cid format for execution task %d", evt.ExecutionId)
+		}
+
+		s.handler.OnResolve(ctx, evt.ExecutionId, algoCid, resolveAt)
 	}
 }
 
@@ -137,24 +149,24 @@ func (s *AlgoScheduler) SetHandler(handler SchedulerHandler) {
 }
 
 // ScheduleRun enqueues an EVENT_TYPE_RUN event to trigger container execution.
-func (s *AlgoScheduler) ScheduleRun(algoID uint) {
+func (s *AlgoScheduler) ScheduleRun(exeId uint) {
 	event := SchedulerEvent{
-		Type:   EVENT_TYPE_RUN,
-		AlgoID: algoID,
+		Type:        EVENT_TYPE_RUN,
+		ExecutionId: exeId,
 	}
 	s.eventCh <- event
-	log.Printf("Run event scheduled for algo %d", algoID)
+	log.Printf("Run event scheduled for execution task %d", exeId)
 }
 
 // ScheduleResolve enqueues an EVENT_TYPE_RESOLVE event to trigger delayed resolution logic.
-func (s *AlgoScheduler) ScheduleResolve(algoID uint, resolveAt time.Time) {
+func (s *AlgoScheduler) ScheduleResolve(exeId uint, algoCid string, resolveAt time.Time) {
 	event := SchedulerEvent{
-		Type:    EVENT_TYPE_RESOLVE,
-		AlgoID:  algoID,
-		Payload: map[string]any{"resolve_at": resolveAt},
+		Type:        EVENT_TYPE_RESOLVE,
+		ExecutionId: exeId,
+		Payload:     map[string]any{"resolve_at": resolveAt},
 	}
 	s.eventCh <- event
-	log.Printf("Resolve event scheduled for algo %d", algoID)
+	log.Printf("Resolve event scheduled for algo %s", algoCid)
 }
 
 // BuildSizeLimit returns the configured maximum Docker build context size.
@@ -201,7 +213,7 @@ func (s *AlgoScheduler) BuildImage(ctx context.Context, dirPath, imageName strin
 
 // RunContainer runs a Docker container based on the specified image, environment, and mounts.
 // It waits for the container to complete and captures its output.
-func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env map[string]string, mounts []mount.Mount) ([]byte, error) {
+func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env map[string]string, mounts []mount.Mount) ([]byte, []byte, bool, error) {
 	log.Printf("Running container with image: %s", imageName)
 
 	// Convert env map to array of KEY=VALUE strings
@@ -226,7 +238,7 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 		nil, nil, "",
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create container: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to create container: %w", err)
 	}
 	id := resp.ID
 	log.Printf("Created container: %s", id)
@@ -245,7 +257,7 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 
 	// Start it
 	if err := s.dockerClient.ContainerStart(ctx, id, container.StartOptions{}); err != nil {
-		return nil, fmt.Errorf("failed to start container: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to start container: %w", err)
 	}
 
 	// Wait for exit
@@ -254,7 +266,7 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return nil, fmt.Errorf("waiting error: %w", err)
+			return nil, nil, false, fmt.Errorf("waiting error: %w", err)
 		}
 	case st := <-statusCh:
 		code = st.StatusCode
@@ -263,20 +275,19 @@ func (s *AlgoScheduler) RunContainer(ctx context.Context, imageName string, env 
 	// Retrieve logs
 	logs, err := s.dockerClient.ContainerLogs(ctx, id, container.LogsOptions{ShowStdout: true, ShowStderr: true})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get logs: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to get logs: %w", err)
 	}
 	defer logs.Close()
 
 	var out, errOut bytes.Buffer
 	if _, err := stdcopy.StdCopy(&out, &errOut, logs); err != nil {
-		return nil, fmt.Errorf("failed to read logs: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to read logs: %w", err)
 	}
 
 	if code != 0 {
-		return errOut.Bytes(), fmt.Errorf("container exited with %d", code)
+		return out.Bytes(), errOut.Bytes(), false, nil
 	}
-
-	return out.Bytes(), nil
+	return out.Bytes(), errOut.Bytes(), true, nil
 }
 
 // Close releases resources used by the scheduler, including the Docker client.

@@ -31,8 +31,8 @@ var (
 
 // DataContributionMetaData contains all meta data concerning the DataContribution contract.
 var DataContributionMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordUsage\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerData\",\"inputs\":[{\"name\":\"contributor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"DataRegistered\",\"inputs\":[{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DataUsed\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false}]",
-	Bin: "0x6080604052348015600e575f5ffd5b50335f5f6101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555061077f8061005b5f395ff3fe608060405234801561000f575f5ffd5b506004361061003f575f3560e01c8063322bc451146100435780638da5cb5b1461005f578063f77704291461007d575b5f5ffd5b61005d60048036038101906100589190610496565b610099565b005b610067610224565b6040516100749190610536565b60405180910390f35b61009760048036038101906100929190610496565b610248565b005b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610127576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161011e906105a9565b60405180910390fd5b604084849050111561016e576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161016590610611565b60405180910390fd5b60208282905011156101b5576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016101ac90610679565b60405180910390fd5b83836040516101c59291906106d3565b60405180910390208573ffffffffffffffffffffffffffffffffffffffff167fa6f8e79ff0a6a2c15964df60aae8a2c02dd61b6a6c1773d5069970ab3ed007aa8484604051610215929190610727565b60405180910390a35050505050565b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146102d6576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016102cd906105a9565b60405180910390fd5b604084849050111561031d576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161031490610611565b60405180910390fd5b6020828290501115610364576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161035b90610679565b60405180910390fd5b83836040516103749291906106d3565b60405180910390208573ffffffffffffffffffffffffffffffffffffffff167f71e939dd060653a92275bc37cafacad6ec4aef056145b37275894e92283a3bba84846040516103c4929190610727565b60405180910390a35050505050565b5f5ffd5b5f5ffd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f610404826103db565b9050919050565b610414816103fa565b811461041e575f5ffd5b50565b5f8135905061042f8161040b565b92915050565b5f5ffd5b5f5ffd5b5f5ffd5b5f5f83601f84011261045657610455610435565b5b8235905067ffffffffffffffff81111561047357610472610439565b5b60208301915083600182028301111561048f5761048e61043d565b5b9250929050565b5f5f5f5f5f606086880312156104af576104ae6103d3565b5b5f6104bc88828901610421565b955050602086013567ffffffffffffffff8111156104dd576104dc6103d7565b5b6104e988828901610441565b9450945050604086013567ffffffffffffffff81111561050c5761050b6103d7565b5b61051888828901610441565b92509250509295509295909350565b610530816103fa565b82525050565b5f6020820190506105495f830184610527565b92915050565b5f82825260208201905092915050565b7f4e6f7420617574686f72697a65640000000000000000000000000000000000005f82015250565b5f610593600e8361054f565b915061059e8261055f565b602082019050919050565b5f6020820190508181035f8301526105c081610587565b9050919050565b7f43494420746f6f206c6f6e6700000000000000000000000000000000000000005f82015250565b5f6105fb600c8361054f565b9150610606826105c7565b602082019050919050565b5f6020820190508181035f830152610628816105ef565b9050919050565b7f44617461736574206e616d6520746f6f206c6f6e6700000000000000000000005f82015250565b5f61066360158361054f565b915061066e8261062f565b602082019050919050565b5f6020820190508181035f83015261069081610657565b9050919050565b5f81905092915050565b828183375f83830152505050565b5f6106ba8385610697565b93506106c78385846106a1565b82840190509392505050565b5f6106df8284866106af565b91508190509392505050565b5f601f19601f8301169050919050565b5f610706838561054f565b93506107138385846106a1565b61071c836106eb565b840190509392505050565b5f6020820190508181035f8301526107408184866106fb565b9050939250505056fea264697066735822122026fda80f4546a2365ccc36230737ef4967089bf98cb8a64a0254aefacf4f141d64736f6c634300081c0033",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordUsage\",\"inputs\":[{\"name\":\"scientist\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"when\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerData\",\"inputs\":[{\"name\":\"contributor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"internalType\":\"string\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"DataRegistered\",\"inputs\":[{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DataUsed\",\"inputs\":[{\"name\":\"scientist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"cid\",\"type\":\"string\",\"indexed\":true,\"internalType\":\"string\"},{\"name\":\"dataset\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"},{\"name\":\"when\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false}]",
+	Bin: "0x6080604052348015600e575f5ffd5b50335f5f6101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506108978061005b5f395ff3fe608060405234801561000f575f5ffd5b506004361061003f575f3560e01c8063322bc451146100435780638da5cb5b1461005f578063ba0226ff1461007d575b5f5ffd5b61005d60048036038101906100589190610499565b610099565b005b610067610224565b6040516100749190610539565b60405180910390f35b61009760048036038101906100929190610585565b610248565b005b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610127576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161011e90610682565b60405180910390fd5b604084849050111561016e576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610165906106ea565b60405180910390fd5b60208282905011156101b5576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016101ac90610752565b60405180910390fd5b83836040516101c59291906107ac565b60405180910390208573ffffffffffffffffffffffffffffffffffffffff167fa6f8e79ff0a6a2c15964df60aae8a2c02dd61b6a6c1773d5069970ab3ed007aa8484604051610215929190610800565b60405180910390a35050505050565b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b5f5f9054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146102d6576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016102cd90610682565b60405180910390fd5b604085859050111561031d576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610314906106ea565b60405180910390fd5b6020838390501115610364576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161035b90610752565b60405180910390fd5b84846040516103749291906107ac565b60405180910390208673ffffffffffffffffffffffffffffffffffffffff167f99e9be100233fd3084928dcaf839d17179c5b442ad69ea57b7709ab2a026c35b8585856040516103c693929190610831565b60405180910390a3505050505050565b5f5ffd5b5f5ffd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f610407826103de565b9050919050565b610417816103fd565b8114610421575f5ffd5b50565b5f813590506104328161040e565b92915050565b5f5ffd5b5f5ffd5b5f5ffd5b5f5f83601f84011261045957610458610438565b5b8235905067ffffffffffffffff8111156104765761047561043c565b5b60208301915083600182028301111561049257610491610440565b5b9250929050565b5f5f5f5f5f606086880312156104b2576104b16103d6565b5b5f6104bf88828901610424565b955050602086013567ffffffffffffffff8111156104e0576104df6103da565b5b6104ec88828901610444565b9450945050604086013567ffffffffffffffff81111561050f5761050e6103da565b5b61051b88828901610444565b92509250509295509295909350565b610533816103fd565b82525050565b5f60208201905061054c5f83018461052a565b92915050565b5f819050919050565b61056481610552565b811461056e575f5ffd5b50565b5f8135905061057f8161055b565b92915050565b5f5f5f5f5f5f6080878903121561059f5761059e6103d6565b5b5f6105ac89828a01610424565b965050602087013567ffffffffffffffff8111156105cd576105cc6103da565b5b6105d989828a01610444565b9550955050604087013567ffffffffffffffff8111156105fc576105fb6103da565b5b61060889828a01610444565b9350935050606061061b89828a01610571565b9150509295509295509295565b5f82825260208201905092915050565b7f4e6f7420617574686f72697a65640000000000000000000000000000000000005f82015250565b5f61066c600e83610628565b915061067782610638565b602082019050919050565b5f6020820190508181035f83015261069981610660565b9050919050565b7f43494420746f6f206c6f6e6700000000000000000000000000000000000000005f82015250565b5f6106d4600c83610628565b91506106df826106a0565b602082019050919050565b5f6020820190508181035f830152610701816106c8565b9050919050565b7f44617461736574206e616d6520746f6f206c6f6e6700000000000000000000005f82015250565b5f61073c601583610628565b915061074782610708565b602082019050919050565b5f6020820190508181035f83015261076981610730565b9050919050565b5f81905092915050565b828183375f83830152505050565b5f6107938385610770565b93506107a083858461077a565b82840190509392505050565b5f6107b8828486610788565b91508190509392505050565b5f601f19601f8301169050919050565b5f6107df8385610628565b93506107ec83858461077a565b6107f5836107c4565b840190509392505050565b5f6020820190508181035f8301526108198184866107d4565b90509392505050565b61082b81610552565b82525050565b5f6040820190508181035f83015261084a8185876107d4565b90506108596020830184610822565b94935050505056fea2646970667358221220bee799af0284a2f5f06fe8a8de2e3b624da66e2439b49003e7e61d52ac9ffe4764736f6c634300081c0033",
 }
 
 // DataContributionABI is the input ABI used to generate the binding from.
@@ -233,25 +233,25 @@ func (_DataContribution *DataContributionCallerSession) Owner() (common.Address,
 	return _DataContribution.Contract.Owner(&_DataContribution.CallOpts)
 }
 
-// RecordUsage is a paid mutator transaction binding the contract method 0xf7770429.
+// RecordUsage is a paid mutator transaction binding the contract method 0xba0226ff.
 //
-// Solidity: function recordUsage(address user, string cid, string dataset) returns()
-func (_DataContribution *DataContributionTransactor) RecordUsage(opts *bind.TransactOpts, user common.Address, cid string, dataset string) (*types.Transaction, error) {
-	return _DataContribution.contract.Transact(opts, "recordUsage", user, cid, dataset)
+// Solidity: function recordUsage(address scientist, string cid, string dataset, uint256 when) returns()
+func (_DataContribution *DataContributionTransactor) RecordUsage(opts *bind.TransactOpts, scientist common.Address, cid string, dataset string, when *big.Int) (*types.Transaction, error) {
+	return _DataContribution.contract.Transact(opts, "recordUsage", scientist, cid, dataset, when)
 }
 
-// RecordUsage is a paid mutator transaction binding the contract method 0xf7770429.
+// RecordUsage is a paid mutator transaction binding the contract method 0xba0226ff.
 //
-// Solidity: function recordUsage(address user, string cid, string dataset) returns()
-func (_DataContribution *DataContributionSession) RecordUsage(user common.Address, cid string, dataset string) (*types.Transaction, error) {
-	return _DataContribution.Contract.RecordUsage(&_DataContribution.TransactOpts, user, cid, dataset)
+// Solidity: function recordUsage(address scientist, string cid, string dataset, uint256 when) returns()
+func (_DataContribution *DataContributionSession) RecordUsage(scientist common.Address, cid string, dataset string, when *big.Int) (*types.Transaction, error) {
+	return _DataContribution.Contract.RecordUsage(&_DataContribution.TransactOpts, scientist, cid, dataset, when)
 }
 
-// RecordUsage is a paid mutator transaction binding the contract method 0xf7770429.
+// RecordUsage is a paid mutator transaction binding the contract method 0xba0226ff.
 //
-// Solidity: function recordUsage(address user, string cid, string dataset) returns()
-func (_DataContribution *DataContributionTransactorSession) RecordUsage(user common.Address, cid string, dataset string) (*types.Transaction, error) {
-	return _DataContribution.Contract.RecordUsage(&_DataContribution.TransactOpts, user, cid, dataset)
+// Solidity: function recordUsage(address scientist, string cid, string dataset, uint256 when) returns()
+func (_DataContribution *DataContributionTransactorSession) RecordUsage(scientist common.Address, cid string, dataset string, when *big.Int) (*types.Transaction, error) {
+	return _DataContribution.Contract.RecordUsage(&_DataContribution.TransactOpts, scientist, cid, dataset, when)
 }
 
 // RegisterData is a paid mutator transaction binding the contract method 0x322bc451.
@@ -498,48 +498,49 @@ func (it *DataContributionDataUsedIterator) Close() error {
 
 // DataContributionDataUsed represents a DataUsed event raised by the DataContribution contract.
 type DataContributionDataUsed struct {
-	User    common.Address
-	Cid     common.Hash
-	Dataset string
-	Raw     types.Log // Blockchain specific contextual infos
+	Scientist common.Address
+	Cid       common.Hash
+	Dataset   string
+	When      *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterDataUsed is a free log retrieval operation binding the contract event 0x71e939dd060653a92275bc37cafacad6ec4aef056145b37275894e92283a3bba.
+// FilterDataUsed is a free log retrieval operation binding the contract event 0x99e9be100233fd3084928dcaf839d17179c5b442ad69ea57b7709ab2a026c35b.
 //
-// Solidity: event DataUsed(address indexed user, string indexed cid, string dataset)
-func (_DataContribution *DataContributionFilterer) FilterDataUsed(opts *bind.FilterOpts, user []common.Address, cid []string) (*DataContributionDataUsedIterator, error) {
+// Solidity: event DataUsed(address indexed scientist, string indexed cid, string dataset, uint256 when)
+func (_DataContribution *DataContributionFilterer) FilterDataUsed(opts *bind.FilterOpts, scientist []common.Address, cid []string) (*DataContributionDataUsedIterator, error) {
 
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
+	var scientistRule []interface{}
+	for _, scientistItem := range scientist {
+		scientistRule = append(scientistRule, scientistItem)
 	}
 	var cidRule []interface{}
 	for _, cidItem := range cid {
 		cidRule = append(cidRule, cidItem)
 	}
 
-	logs, sub, err := _DataContribution.contract.FilterLogs(opts, "DataUsed", userRule, cidRule)
+	logs, sub, err := _DataContribution.contract.FilterLogs(opts, "DataUsed", scientistRule, cidRule)
 	if err != nil {
 		return nil, err
 	}
 	return &DataContributionDataUsedIterator{contract: _DataContribution.contract, event: "DataUsed", logs: logs, sub: sub}, nil
 }
 
-// WatchDataUsed is a free log subscription operation binding the contract event 0x71e939dd060653a92275bc37cafacad6ec4aef056145b37275894e92283a3bba.
+// WatchDataUsed is a free log subscription operation binding the contract event 0x99e9be100233fd3084928dcaf839d17179c5b442ad69ea57b7709ab2a026c35b.
 //
-// Solidity: event DataUsed(address indexed user, string indexed cid, string dataset)
-func (_DataContribution *DataContributionFilterer) WatchDataUsed(opts *bind.WatchOpts, sink chan<- *DataContributionDataUsed, user []common.Address, cid []string) (event.Subscription, error) {
+// Solidity: event DataUsed(address indexed scientist, string indexed cid, string dataset, uint256 when)
+func (_DataContribution *DataContributionFilterer) WatchDataUsed(opts *bind.WatchOpts, sink chan<- *DataContributionDataUsed, scientist []common.Address, cid []string) (event.Subscription, error) {
 
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
+	var scientistRule []interface{}
+	for _, scientistItem := range scientist {
+		scientistRule = append(scientistRule, scientistItem)
 	}
 	var cidRule []interface{}
 	for _, cidItem := range cid {
 		cidRule = append(cidRule, cidItem)
 	}
 
-	logs, sub, err := _DataContribution.contract.WatchLogs(opts, "DataUsed", userRule, cidRule)
+	logs, sub, err := _DataContribution.contract.WatchLogs(opts, "DataUsed", scientistRule, cidRule)
 	if err != nil {
 		return nil, err
 	}
@@ -571,9 +572,9 @@ func (_DataContribution *DataContributionFilterer) WatchDataUsed(opts *bind.Watc
 	}), nil
 }
 
-// ParseDataUsed is a log parse operation binding the contract event 0x71e939dd060653a92275bc37cafacad6ec4aef056145b37275894e92283a3bba.
+// ParseDataUsed is a log parse operation binding the contract event 0x99e9be100233fd3084928dcaf839d17179c5b442ad69ea57b7709ab2a026c35b.
 //
-// Solidity: event DataUsed(address indexed user, string indexed cid, string dataset)
+// Solidity: event DataUsed(address indexed scientist, string indexed cid, string dataset, uint256 when)
 func (_DataContribution *DataContributionFilterer) ParseDataUsed(log types.Log) (*DataContributionDataUsed, error) {
 	event := new(DataContributionDataUsed)
 	if err := _DataContribution.contract.UnpackLog(event, "DataUsed", log); err != nil {

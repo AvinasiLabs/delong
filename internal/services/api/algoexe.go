@@ -14,13 +14,13 @@ import (
 	"gorm.io/gorm"
 )
 
-type AlgoResource struct {
+type AlgoExeResource struct {
 	ApiServiceOptions
 }
 
-func (r *AlgoResource) CreateHandler(c *gin.Context) {
+func (r *AlgoExeResource) CreateHandler(c *gin.Context) {
 	ctx := c.Request.Context()
-	req := types.SubmitAlgoReq{}
+	req := types.SubmitAlgoExeReq{}
 	err := c.ShouldBind(&req)
 	if err != nil {
 		log.Printf("Failed to bind request for submitting algorithm: %v", err)
@@ -35,19 +35,33 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := http.Get(req.AlgoLink)
-	if err != nil {
-		log.Printf("Failed to open algorithm link: %v", err)
-		responser.ResponseError(c, bizcode.AlGO_LINK_INVALID)
-		return
-	}
-	defer resp.Body.Close()
+	var algoCid string
+	algo, _ := models.GetAlgoByLink(r.MysqlDb, req.AlgoLink)
 
-	cid, err := r.IpfsStore.UploadStream(ctx, resp.Body)
-	if err != nil {
-		log.Printf("Failed to upload algorithm to IPFS: %v", err)
-		responser.ResponseError(c, bizcode.IPFS_UPLOAD_FAIL)
-		return
+	// algo NOT existed
+	if algo == nil {
+		resp, err := http.Get(req.AlgoLink)
+		if err != nil {
+			log.Printf("Failed to open algorithm link: %v", err)
+			responser.ResponseError(c, bizcode.AlGO_LINK_INVALID)
+			return
+		}
+		defer resp.Body.Close()
+
+		algoCid, err = r.IpfsStore.UploadStream(ctx, resp.Body)
+		if err != nil {
+			log.Printf("Failed to upload algorithm to IPFS: %v", err)
+			responser.ResponseError(c, bizcode.IPFS_UPLOAD_FAIL)
+			return
+		}
+
+		algo, err = models.CreateAlgo(r.MysqlDb, repo, req.AlgoLink, algoCid)
+		if err != nil {
+			log.Printf("Failed to create algorithm record: %v", err)
+			responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
+			return
+		}
+
 	}
 
 	dbtx := r.MysqlDb.Begin()
@@ -58,15 +72,15 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 		}
 	}()
 
-	algo, err := models.CreateAlgo(dbtx, repo, req.AlgoLink, req.ScientistWallet, cid, req.Dataset)
+	algoExe, err := models.CreateAlgoExecution(dbtx, algo.ID, req.Dataset, req.ScientistWallet)
 	if err != nil {
 		dbtx.Rollback()
-		log.Printf("Failed to create algorithm record: %v", err)
+		log.Printf("Failed to create algo execution: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
 		return
 	}
 
-	tx, err := r.CtrCaller.SubmitAlgorithm(ctx, common.HexToAddress(req.ScientistWallet), cid, req.Dataset)
+	tx, err := r.CtrCaller.SubmitAlgorithm(ctx, algoExe.ID, common.HexToAddress(req.ScientistWallet), algoCid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to submit algorithm to blockchain: %v", err)
@@ -76,7 +90,7 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 
 	txHash := tx.Hash().Hex()
 	// Create blockchain transaction record
-	_, err = models.CreateTransaction(dbtx, txHash, algo.ID, models.ENTITY_TYPE_ALGO)
+	_, err = models.CreateTransaction(dbtx, txHash, algoExe.ID, models.ENTITY_TYPE_EXECUTION)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to create blockchain transaction record: %v", err)
@@ -93,18 +107,20 @@ func (r *AlgoResource) CreateHandler(c *gin.Context) {
 	responser.ResponseData(c, txHash)
 }
 
-func (r *AlgoResource) ListHandler(c *gin.Context) {
+func (r *AlgoExeResource) ListHandler(c *gin.Context) {
 	page, pageSize := parsePageParams(c)
-	algos, total, err := models.GetConfirmedAlgos(r.MysqlDb, page, pageSize)
+	// algos, total, err := models.GetAlgosConfirmed(r.MysqlDb, page, pageSize)
+
+	algoexes, total, err := models.GetAlgoExes(r.MysqlDb, page, pageSize)
 	if err != nil {
 		log.Printf("Failed to list confirmed algos: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_READ_FAIL)
 		return
 	}
-	responser.ResponseList(c, page, pageSize, total, algos)
+	responser.ResponseList(c, page, pageSize, total, algoexes)
 }
 
-func (r *AlgoResource) TakeHandler(c *gin.Context) {
+func (r *AlgoExeResource) TakeHandler(c *gin.Context) {
 	var id uint
 	if err := parseUintParam(c.Param("id"), &id); err != nil {
 		log.Printf("Failed to parse id param: %v", err)
@@ -112,7 +128,8 @@ func (r *AlgoResource) TakeHandler(c *gin.Context) {
 		return
 	}
 
-	algoDetails, err := models.GetAlgoDetailsByID(r.MysqlDb, id)
+	// algoDetails, err := models.GetAlgoDetailsByIDConfirmed(r.MysqlDb, id)
+	algoExes, err := models.GetAlgoExeById(r.MysqlDb, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Algo %v not found", id)
@@ -124,7 +141,7 @@ func (r *AlgoResource) TakeHandler(c *gin.Context) {
 		return
 	}
 
-	responser.ResponseData(c, algoDetails)
+	responser.ResponseData(c, algoExes)
 }
 
 // func (r *AlgoResource) DeleteHandler(c *gin.Context) {

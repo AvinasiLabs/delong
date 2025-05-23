@@ -98,12 +98,17 @@ func TestRunContainer(t *testing.T) {
 		t.Fatalf("BuildImage failed: %v", err)
 	}
 
-	out, err := s.RunContainer(ctx, image, nil, nil)
+	out, errmsg, success, err := s.RunContainer(ctx, image, nil, nil)
 	if err != nil {
 		t.Fatalf("RunContainer failed: %v", err)
 	}
 
-	if !bytes.Contains(bytes.TrimSpace(out), []byte("hello")) {
-		t.Errorf("expected greeting, got %q", out)
+	if success {
+		if !bytes.Contains(bytes.TrimSpace(out), []byte("hello")) {
+			t.Errorf("expected hello, got %s", string(out))
+		}
+	} else {
+		t.Errorf("Execution success but algo failed: %s", string(errmsg))
 	}
+
 }

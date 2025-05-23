@@ -241,7 +241,7 @@ func (c *ContractCaller) RegisterData(ctx context.Context, userAccount common.Ad
 	return ctct.RegisterData(txOpts, userAccount, cid, dataset)
 }
 
-func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc common.Address, cid string, dataset string) (*types.Transaction, error) {
+func (c *ContractCaller) RecordUsage(ctx context.Context, scientist common.Address, cid string, dataset string, when int64) (*types.Transaction, error) {
 	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 		return nil, err
 	}
 
-	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	ctct, err := NewDataContribution(c.contractAddr.DataContribution, c.httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -262,10 +262,10 @@ func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, scientistAcc commo
 		return nil, err
 	}
 
-	return ctct.SubmitAlgorithm(txOpts, scientistAcc, cid, dataset)
+	return ctct.RecordUsage(txOpts, scientist, cid, dataset, big.NewInt(when))
 }
 
-func (c *ContractCaller) Resolve(ctx context.Context, algoId uint) (*types.Transaction, error) {
+func (c *ContractCaller) SubmitAlgorithm(ctx context.Context, exeId uint, scientistAcc common.Address, cid string, dataset string) (*types.Transaction, error) {
 	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,31 @@ func (c *ContractCaller) Resolve(ctx context.Context, algoId uint) (*types.Trans
 		return nil, err
 	}
 
-	return ctct.Resolve(txOpts, big.NewInt(int64(algoId)))
+	return ctct.SubmitAlgorithm(txOpts, big.NewInt(int64(exeId)), scientistAcc, cid, dataset)
+}
+
+func (c *ContractCaller) Resolve(ctx context.Context, AlgoCid string, exeId uint) (*types.Transaction, error) {
+	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	ctct, err := NewAlgorithmReview(c.contractAddr.AlgorithmReview, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctct.Resolve(txOpts, AlgoCid, big.NewInt(int64(exeId)))
 }
 
 func (c *ContractCaller) SetCommitteeMember(ctx context.Context, memberAcc common.Address, isApproved bool) (*types.Transaction, error) {

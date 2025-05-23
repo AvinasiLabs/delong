@@ -20,17 +20,17 @@ const (
 	TEST_DATASET_NAME     = "test-1747851424415680000"
 )
 
-func TestAlgoCreateAndTake(t *testing.T) {
-	req := types.SubmitAlgoReq{
+func TestAlgoExeCreateAndTake(t *testing.T) {
+	req := types.SubmitAlgoExeReq{
 		AlgoLink:        TEST_ALGO_LINK,
 		ScientistWallet: TEST_SCIENTIST_WALLET,
 		Dataset:         TEST_DATASET_NAME,
 	}
 	body, _ := json.Marshal(req)
 
-	resp, err := http.Post(TEST_BASE_URL+"/algos", "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(TEST_BASE_URL+"/algoexes", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		t.Fatalf("POST /algos failed: %v", err)
+		t.Fatalf("POST /algoexes failed: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -57,9 +57,9 @@ func TestAlgoCreateAndTake(t *testing.T) {
 	var tx models.BlockchainTransaction
 	_ = json.Unmarshal(wsResp.Data, &tx)
 
-	getResp, err := http.Get(TEST_BASE_URL + "/algos/" + strconv.Itoa(int(tx.EntityID)))
+	getResp, err := http.Get(TEST_BASE_URL + "/algoexes/" + strconv.Itoa(int(tx.EntityID)))
 	if err != nil {
-		t.Fatalf("GET /algos/:id failed: %v", err)
+		t.Fatalf("GET /algoexes/:id failed: %v", err)
 	}
 	defer getResp.Body.Close()
 	body, _ = io.ReadAll(getResp.Body)
@@ -73,10 +73,10 @@ func TestAlgoCreateAndTake(t *testing.T) {
 	t.Logf("Algo Take response: %s", body)
 }
 
-func TestAlgoList(t *testing.T) {
-	resp, err := http.Get(TEST_BASE_URL + "/algos?page=1&page_size=10")
+func TestAlgoExeList(t *testing.T) {
+	resp, err := http.Get(TEST_BASE_URL + "/algoexes?page=1&page_size=10")
 	if err != nil {
-		t.Fatalf("GET /algos failed: %v", err)
+		t.Fatalf("GET /algoexes failed: %v", err)
 	}
 	defer resp.Body.Close()
 

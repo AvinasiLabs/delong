@@ -8,7 +8,7 @@ type UploadReportReq struct {
 	TestTime   time.Time `form:"testTime" binding:"required"`
 }
 
-type SubmitAlgoReq struct {
+type SubmitAlgoExeReq struct {
 	ScientistWallet string `json:"scientist_wallet" binding:"required,ethwallet"` // hex
 	Dataset         string `json:"dataset" binding:"required"`
 	AlgoLink        string `json:"algo_link" binding:"required"`

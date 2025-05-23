@@ -64,8 +64,8 @@ func (s *ApiService) Init(ctx context.Context) error {
 	testReports := &TestReportResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/reports", testReports)
 
-	algos := &AlgoResource{s.ApiServiceOptions}
-	rest.CRUD(apiGroup, "/algos", algos)
+	algos := &AlgoExeResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/algoexes", algos)
 
 	committee := &CommitteeResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/committee", committee)

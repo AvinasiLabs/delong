@@ -8,7 +8,7 @@ const (
 )
 
 type SchedulerEvent struct {
-	Type    EventType
-	AlgoID  uint
-	Payload map[string]any // optional key-value pairs
+	Type        EventType
+	ExecutionId uint
+	Payload     map[string]any // optional key-value pairs
 }

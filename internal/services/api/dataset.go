@@ -81,7 +81,6 @@ func (r *DatasetResource) UpdateHandler(c *gin.Context) {
 	}
 
 	updated, err := models.UpdateDataset(r.MysqlDb, id, req.UiName, req.Description)
-	log.Printf("updated: %v", updated)
 	if err != nil {
 		log.Printf("Failed to update dataset: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
