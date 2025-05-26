@@ -62,7 +62,8 @@ For detailed insights and complete smart contract implementations, please visit 
 - 🔄 Smart contracts deployed on Ethereum mainnet (or other production-grade L1)
 - 🧠 Auditing system transition: from curator committee → token-gated governance voting
 - 🌐 First batch of real users onboarded (scientists submitting algorithms, data contributors uploading samples)
-- 🎯 Design contribution-weighted reward system for future token distribution
+- 🎉 Official TGE (Token Generation Event)
+- 🎯 Design contribution-weighted reward system for token distribution
 
 ## 🛠 Q4 2025 — Scientific Developer Ecosystem
 
@@ -92,7 +93,6 @@ For detailed insights and complete smart contract implementations, please visit 
 
 **Milestone:** Transition platform ownership to token holders
 
-- 🎉 Official TGE (Token Generation Event)
 - ⚖️ Launch Delong DAO
   - Define proposal lifecycle, quorum, voting weights
 - 🧠 Enable algorithm audit market (open review + reward system)
