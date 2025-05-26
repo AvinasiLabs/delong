@@ -1,4 +1,4 @@
-# 🔐 Delong - Privacy-Preserving Computation Platform
+# 🧬 Delong - Privacy-Preserving Computation Platform for Biomedical Data
 
 ## 📌 Overview
 
@@ -8,9 +8,18 @@ This repository contains the fully open-sourced code running inside the Delong p
 
 ## 💡 Motivation
 
-Biomedical and longevity research often involves highly sensitive personal health data, requiring strong privacy protections. Traditional centralized data handling models expose these data to potential breaches and unauthorized access, creating significant ethical and security risks. Additionally, researchers need assurance that their analytical algorithms are executed faithfully, without manipulation or unauthorized inspection.
+Biomedical and longevity research relies on sensitive personal data, such as genomic profiles and diagnostic records. While Trusted Execution Environments (TEEs) ensure secure, privacy-preserving computation, transparency and incentive alignment require a broader trust model.
 
-Delong aims to solve these issues by providing a secure, decentralized, and transparent computational environment where sensitive data remains fully protected and computation integrity is guaranteed. By integrating blockchain governance with TEE technologies, Delong ensures robust privacy, verifiable trustworthiness, and community-driven oversight.
+Delong combines blockchain with TEE to achieve:
+
+- 🔐 Secure and encrypted storage of user-contributed bio-data
+- 🧪 Confidential execution of algorithms without exposing raw data
+- 🧾 Immutable on-chain records of all data usage and algorithm executions
+- 🧑‍⚖️ Community-driven audit of algorithm safety via decentralized governance
+- 💎 Tokenized incentives: data contributors are rewarded with Dataset Tokens and evolution NFTs based on actual usage of their data
+- 🎓 Verifiable scientific impact: contributors can trace how their data enabled real research outcomes
+
+By recording every data contribution and algorithm usage on-chain, Delong enables **verifiable attribution**, **trustless governance**, and **sustainable token-driven participation**, empowering both researchers and citizen contributors in an open, auditable, and privacy-first scientific ecosystem.
 
 ## 🚀 Key Features
 
@@ -31,7 +40,70 @@ Delong adopts a comprehensive blockchain + TEE hybrid architecture that combines
 
 * **Off-Chain System**: Executes approved algorithms securely off-chain within TEE nodes, providing robust data confidentiality and execution integrity.
 
-For detailed insights and complete smart contract implementations, please visit our [Avinasi Contracts repository](https://github.com/AvinasiLabs/Avinasi_contracts).
+For detailed insights and complete smart contract implementations, please visit our [delong-contract](https://github.com/AvinasiLabs/delong-contract) repository.
+
+## 📅 Strategic Roadmap
+
+## ✅ Q2 2025 — MVP Closed Alpha Launch
+
+**Milestone:** Complete the first trustless end-to-end demo in a controlled environment
+
+- ✅ Chain-based record of data submission and algorithm approval
+- ✅ TEE-based algorithm execution with Docker container isolation
+- ✅ Basic Web UI for dataset upload and algorithm interaction
+- ✅ Initial backend modules: API Service, Chainsync, Runtime
+
+---
+
+## 🚀 Q3 2025 — Public Launch and Contribution Scoring Framework
+
+**Milestone:** Delong protocol goes live on public mainnet with first real users and foundation for token rewards
+
+- 🔄 Smart contracts deployed on Ethereum mainnet (or other production-grade L1)
+- 🧠 Auditing system transition: from curator committee → token-gated governance voting
+- 🌐 First batch of real users onboarded (scientists submitting algorithms, data contributors uploading samples)
+- 🎯 Design contribution-weighted reward system for future token distribution
+
+## 🛠 Q4 2025 — Scientific Developer Ecosystem
+
+**Milestone:** Empower researchers to easily integrate Delong with their workflows
+
+- 🧰 Release SDK for dataset loading, algorithm packaging, result validation and tools for auditing + diagnostic helpers
+- 📸 Standardize data output formats (models, images, numerical results)
+- 🧑‍🔬 Begin pilot collaborations with 2–3 research labs
+- 📈 Expand open-access dataset registry to >10 representative sets (e.g. methylation, transcriptomics, aging markers)
+- 🧬 Begin onboarding real longitudinal samples from contributors (~1,000 profiles target)
+- 🧪 Upgrade voting UX + token staking for audit participation
+
+---
+
+## 🧱 Q1 2026 — Reliability and Scaling Infrastructure
+
+**Milestone:** Prepare for growth and long-term sustainability
+
+- 🗂️ Migrate off-chain storage to distributed FS (e.g. JuiceFS) with hot-swap TEE capability
+- 🔁 Enable snapshot + TEE node migration + resilience testing
+- 🔐 Implement tiered dataset access policy (free / staked / permissioned)
+- 🌍 Begin exploring multi-chain or cross-chain data referencing model
+
+---
+
+## ⚖️ Q2 2026 — Token Launch and Community Governance
+
+**Milestone:** Transition platform ownership to token holders
+
+- 🎉 Official TGE (Token Generation Event)
+- ⚖️ Launch Delong DAO
+  - Define proposal lifecycle, quorum, voting weights
+- 🧠 Enable algorithm audit market (open review + reward system)
+- 📊 Publish real-world data usage reports and reward history
+
+---
+
+## 🔭 Long-Term Vision (2026+)
+
+- Enable global DataDAO governance for dataset curation
+- Standardize Delong protocol for integration into longevity journals and registries
 
 ## 🔍 Open Source & Audit
 
@@ -39,4 +111,4 @@ Transparency is a foundational principle of the Delong platform. By open-sourcin
 
 Additionally, through remote attestation provided by TEE technology, users can confidently verify the consistency of running code with the publicly audited source code, reinforcing the platform’s core "trust but verify" philosophy.
 
-We warmly welcome security researchers and community members to review our code, suggest improvements, and participate actively in the continuous security enhancement of the Delong platform. 🌟
+We warmly welcome security researchers, privacy advocates, and community contributors to audit our codebase, propose enhancements, and actively participate in building a secure and transparent future for biomedical research through Delong. 🌟
