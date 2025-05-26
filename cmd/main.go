@@ -89,6 +89,7 @@ func main() {
 		KeyVault:       keyVault,
 		Notifier:       notifier,
 		ReportAnalyzer: reportAnalyzer,
+		JwtSecret:      config.JwtSecret,
 	})
 
 	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{

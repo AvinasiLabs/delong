@@ -36,6 +36,7 @@ type ApiServiceOptions struct {
 	KeyVault       *tee.KeyVault
 	Notifier       *ws.Notifier
 	ReportAnalyzer *analysis.ReportAnalyzer
+	JwtSecret      string
 }
 
 func NewService(opts ApiServiceOptions) *ApiService {
@@ -54,9 +55,12 @@ func (s *ApiService) Name() string {
 }
 
 func (s *ApiService) Init(ctx context.Context) error {
+	jwtMiddleware := NewJwtMiddleware(s.JwtSecret)
+
 	// Register routes
 	s.engine.GET("/ws", ws.NewHandler(s.Notifier.Hub()))
 	apiGroup := s.engine.Group("/api")
+	apiGroup.Use(jwtMiddleware.Auth())
 
 	datasets := &DatasetResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/datasets", datasets)

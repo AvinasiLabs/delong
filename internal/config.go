@@ -21,6 +21,8 @@ type Config struct {
 
 	MysqlDsn                  string
 	OfficialAccountPrivateKey string
+
+	JwtSecret string
 }
 
 func NewConfig(
@@ -30,6 +32,7 @@ func NewConfig(
 	diagnosticSrvEndpoint string,
 	mysqlDsn string,
 	officialAccountPrivateKey string,
+	jwtSecret string,
 ) *Config {
 	return &Config{
 		IpfsApiAddr:               ipfsApiAddr,
@@ -42,6 +45,7 @@ func NewConfig(
 		DiagnosticSrvEndpoint:     diagnosticSrvEndpoint,
 		MysqlDsn:                  mysqlDsn,
 		OfficialAccountPrivateKey: officialAccountPrivateKey,
+		JwtSecret:                 jwtSecret,
 	}
 }
 
@@ -60,6 +64,8 @@ const (
 	ENVKEY_MYSQL_DSN = "MYSQL_DSN"
 
 	ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY = "OFFICIAL_ACCOUNT_PRIVATE_KEY"
+
+	ENVKEY_JWT_SECRET = "JWT_SECRET"
 )
 
 func LoadConfigFromEnv() (*Config, error) {
@@ -68,6 +74,9 @@ func LoadConfigFromEnv() (*Config, error) {
 	ethWsUrl := os.Getenv(ENVKEY_ETH_WS_URL)
 	chainIdStr := os.Getenv(ENVKEY_CHAIN_ID)
 	chainId, err := strconv.ParseInt(chainIdStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	minioEndpoint := os.Getenv(ENVKEY_MINIO_ENDPOINT)
 	minioAccessKey := os.Getenv(ENVKEY_MINIO_AK)
@@ -75,9 +84,8 @@ func LoadConfigFromEnv() (*Config, error) {
 	diagnosticSrvEndpoint := os.Getenv(ENVKEY_DIAGNOSTIC_SRV_ENDPOINT)
 	mysqlDsn := os.Getenv(ENVKEY_MYSQL_DSN)
 	officialAccountPk := os.Getenv(ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY)
-	if err != nil {
-		return nil, err
-	}
+
+	jwtSecret := os.Getenv(ENVKEY_JWT_SECRET)
 	return NewConfig(
 		ipfsApiAddr,
 		ethHttpUrl, ethWsUrl, chainId,
@@ -85,6 +93,7 @@ func LoadConfigFromEnv() (*Config, error) {
 		diagnosticSrvEndpoint,
 		mysqlDsn,
 		officialAccountPk,
+		jwtSecret,
 	), nil
 }
 
@@ -102,5 +111,6 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Endpoint: %s\n", c.DiagnosticSrvEndpoint))
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
 	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
+	builder.WriteString(fmt.Sprintf("\tJWT Secret: [HIDDEN]\n"))
 	return builder.String()
 }

@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"delong/pkg"
 	"delong/pkg/aesgcm"
 	"fmt"
 	"io"
@@ -55,7 +54,7 @@ func (i *IpfsStore) UploadStream(ctx context.Context, r io.Reader) (string, erro
 }
 
 func (i *IpfsStore) UploadEncrypted(ctx context.Context, rawFile []byte, key []byte) (string, error) {
-	combined, err := pkg.EncryptGCM(rawFile, key)
+	combined, err := aesgcm.Encrypt(rawFile, key)
 	if err != nil {
 		return "", err
 	}
