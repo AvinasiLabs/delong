@@ -1,0 +1,79 @@
+services:
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: delong_test_2025
+      MYSQL_DATABASE: delong
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  ipfs:
+    image: ipfs/kubo:latest
+    environment:
+      - IPFS_PATH=/data/ipfs
+    volumes:
+      - ./data/ipfs:/data/ipfs
+    expose:
+      - "5001"
+      - "8080"
+    healthcheck:
+      test: ["CMD", "ipfs", "id"]
+      timeout: 10s
+      retries: 5
+
+  anvil:
+    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc-arm64
+    command: anvil --host 0.0.0.0 --port 8545 --block-time 2 --state /data/anvil/delong_state.json
+    volumes:
+      - ./data/anvil:/data/anvil
+    expose:
+      - "8545"
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://localhost:8545"]
+      timeout: 30s
+      retries: 10
+
+  dstack-simulator:
+    image: lilhammer/dstack-simulator:latest
+    expose:
+      - "8090"
+    volumes:
+      - ./data/simulator:/app/sockets
+
+  delong:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: hammer111/delong:dev
+    environment:
+      - IPFS_ADDR=/ip4/127.0.0.1/tcp/5001
+      - ETH_HTTP_URL=http://anvil:8545
+      - ETH_WS_URL=ws://anvil:8545
+      - CHAIN_ID=31337
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_AK=delong_test
+      - MINIO_SK=delong_test_2025_minio
+      - DIAGNOSTIC_SRV_ENDPOINT=http://diagnostic-mock:8008
+      - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
+      - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
+      - OFFICIAL_ACCOUNT_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - JWT_SECRET=phala_cloud_test_jwt_secret_2025_demo
+    volumes:
+      - ./data/delong_dataset:/data/delong_dataset
+      - ./data/simulator:/app/sockets
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      anvil:
+        condition: service_healthy
+    restart: no

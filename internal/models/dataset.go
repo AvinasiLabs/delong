@@ -7,12 +7,12 @@ import (
 )
 
 type DatasetRegistry struct {
-	ID          int
-	Name        string
-	UiName      string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name        string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_name" json:"name"`
+	UiName      string    `gorm:"type:varchar(255);not null" json:"ui_name"`
+	Description string    `gorm:"type:text" json:"description"`
+	CreatedAt   time.Time `gorm:"autoCreateTime;index:idx_created_at" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func CreateDataset(db *gorm.DB, name, uiName, desc string) (*DatasetRegistry, error) {

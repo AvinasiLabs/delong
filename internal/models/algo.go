@@ -14,10 +14,10 @@ ON bt.entity_id = algos.id
 `
 
 type Algo struct {
-	ID       uint
-	Name     string
-	AlgoLink string
-	Cid      string
+	ID       uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name     string `gorm:"type:varchar(255);not null" json:"name"`
+	AlgoLink string `gorm:"type:varchar(255);not null;uniqueIndex:idx_algo_link" json:"algo_link"`
+	Cid      string `gorm:"type:varchar(255);not null;uniqueIndex:idx_cid;comment:source code CID" json:"cid"`
 
 	// UsedDataset     string
 	// ScientistWallet string // 0x...
@@ -25,8 +25,8 @@ type Algo struct {
 	// Status        string     // enum: PENDING, APPROVED, REJECTED
 	// VoteStartTime *time.Time // vote duration
 	// VoteEndTime   *time.Time // vote duration
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `gorm:"autoCreateTime;index:idx_created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // CreateAlgo creates a new algorithm

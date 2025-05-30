@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"delong/internal"
+	"delong/internal/models"
 	"delong/internal/services/api"
 	"delong/internal/services/chainsync"
 	"delong/internal/services/runtime"
@@ -47,6 +48,10 @@ func main() {
 	mysqlDb, err := db.NewMysqlDb(config.MysqlDsn)
 	if err != nil {
 		log.Fatalf("Failed to create mysql client: %v", err)
+	}
+	err = models.AutoMigrateDatabase(mysqlDb)
+	if err != nil {
+		log.Fatalf("Failed to auto migrate database: %v", err)
 	}
 
 	reportAnalyzer := analysis.NewReportAnalyzer(config.DiagnosticSrvEndpoint)

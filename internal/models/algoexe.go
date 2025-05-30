@@ -28,20 +28,20 @@ ON bt.entity_id = algo_exes.id
 
 // AlgoExe tracks algorithm execution status and results
 type AlgoExe struct {
-	ID              uint
-	AlgoID          uint
-	UsedDataset     string
-	ScientistWallet string     // 0x...
-	ReviewStatus    string     // enum: REVIEWING, APPROVED, REJECTED
-	VoteStartTime   *time.Time // vote duration
-	VoteEndTime     *time.Time // vote duration
-	Status          string     // QUEUED, RUNNING, COMPLETED, FAILED
-	StartTime       *time.Time // Container execution duration
-	EndTime         *time.Time // Container execution duration
-	Result          string     // Execution output
-	ErrorMsg        string     // Error message if failed
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID              uint       `gorm:"primaryKey;autoIncrement;type:bigint unsigned" json:"id"`
+	AlgoID          uint       `gorm:"type:bigint unsigned;not null;index:idx_algo_id" json:"algo_id"`
+	UsedDataset     string     `gorm:"type:varchar(255);not null;index:idx_dataset" json:"used_dataset"`
+	ScientistWallet string     `gorm:"type:varchar(255);not null;index:idx_wallet;comment:Ethereum wallet address in hexadecimal format (0x...)" json:"scientist_wallet"`
+	ReviewStatus    string     `gorm:"type:enum('REVIEWING','APPROVED','REJECTED');not null;default:'REVIEWING';index:idx_review_status" json:"review_status"`
+	VoteStartTime   *time.Time `gorm:"type:timestamp null" json:"vote_start_time"`
+	VoteEndTime     *time.Time `gorm:"type:timestamp null" json:"vote_end_time"`
+	Status          string     `gorm:"type:enum('QUEUED','RUNNING','COMPLETED','FAILED');not null;default:'QUEUED';index:idx_status" json:"status"`
+	StartTime       *time.Time `gorm:"type:timestamp null" json:"start_time"`
+	EndTime         *time.Time `gorm:"type:timestamp null" json:"end_time"`
+	Result          string     `gorm:"type:text" json:"result"`
+	ErrorMsg        string     `gorm:"type:text" json:"error_msg"`
+	CreatedAt       time.Time  `gorm:"autoCreateTime;index:idx_created_at" json:"created_at"`
+	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // CreateAlgoExecution creates a new algorithm execution record
@@ -64,8 +64,7 @@ func CreateAlgoExecution(db *gorm.DB, algoID uint, dataset, scientist string) (*
 // GetPendingExecutions retrieves all executions in QUEUED or RUNNING state
 func GetPendingAlgoExesConfirmed(db *gorm.DB) ([]AlgoExe, error) {
 	var executions []AlgoExe
-	// wrong query condition: Where("status IN ?", []string{EXE_STATUS_QUEUED, EXE_STATUS_RUNNING}).Find(&executions).Error
-	// because EXE_STATUS_QUEUED indicated that algo execution taks is not resolved
+	// EXE_STATUS_QUEUED indicated that algo execution taks is not resolved
 	err := db.Table("algo_exes").
 		Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION).
 		Where("status = ?", EXE_STATUS_RUNNING).Find(&executions).Error

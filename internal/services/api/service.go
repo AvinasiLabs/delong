@@ -58,6 +58,9 @@ func (s *ApiService) Init(ctx context.Context) error {
 	jwtMiddleware := NewJwtMiddleware(s.JwtSecret)
 
 	// Register routes
+	s.engine.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
+	})
 	s.engine.GET("/ws", ws.NewHandler(s.Notifier.Hub()))
 	apiGroup := s.engine.Group("/api")
 	apiGroup.Use(jwtMiddleware.Auth())

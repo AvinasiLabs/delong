@@ -8,11 +8,11 @@ import (
 )
 
 type CommitteeMember struct {
-	ID           int
-	MemberWallet string
-	IsApproved   bool
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	MemberWallet string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_member_wallet" json:"member_wallet"`
+	IsApproved   bool      `gorm:"not null;default:false;index:idx_is_approved" json:"is_approved"`
+	CreatedAt    time.Time `gorm:"autoCreateTime;index:idx_created_at" json:"created_at"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // UpsertCommitteeMember creates or updates a member based on wallet

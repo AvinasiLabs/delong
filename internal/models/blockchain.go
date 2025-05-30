@@ -24,15 +24,15 @@ const (
 
 // BlockchainTransaction records blockchain transactions and their status
 type BlockchainTransaction struct {
-	ID             uint
-	TxHash         string  // Transaction hash
-	EntityID       uint    // Associated entity ID
-	EntityType     string  // values: "vote", "algo", "committee"
-	Status         string  // Transaction status (PENDING, CONFIRMED, FAILED)
-	BlockNumber    *uint64 // Confirmation block number
-	BlockTimestamp *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             uint       `gorm:"primaryKey;autoIncrement;type:bigint unsigned" json:"id"`
+	TxHash         string     `gorm:"type:varchar(66);not null;uniqueIndex:idx_tx_hash;comment:Ethereum transaction hash" json:"tx_hash"`
+	EntityID       uint       `gorm:"type:bigint unsigned;not null;index:idx_entity_id;comment:ID of the associated entity" json:"entity_id"`
+	EntityType     string     `gorm:"type:varchar(255);not null;index:idx_entity_type;comment:Type of the associated entity: USER, ALGO, etc." json:"entity_type"`
+	Status         string     `gorm:"type:enum('PENDING','CONFIRMED','FAILED');not null;index:idx_status;comment:Transaction status: PENDING, CONFIRMED, FAILED" json:"status"`
+	BlockNumber    *uint64    `gorm:"type:bigint unsigned;comment:Block number where transaction was confirmed" json:"block_number"`
+	BlockTimestamp *time.Time `gorm:"type:datetime;comment:Timestamp of the block" json:"block_timestamp"`
+	CreatedAt      time.Time  `gorm:"type:datetime;not null;autoCreateTime;index:idx_created_at" json:"created_at"`
+	UpdatedAt      time.Time  `gorm:"type:datetime;not null;autoUpdateTime" json:"updated_at"`
 }
 
 // GetTransactionByHash retrieves a transaction record by its hash

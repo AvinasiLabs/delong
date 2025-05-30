@@ -28,3 +28,6 @@ go.work.sum
 files
 assets/
 .idea/
+.github/
+k8s/
+data/

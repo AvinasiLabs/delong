@@ -8,10 +8,10 @@ import (
 
 // ContractMeta is the schema for storing deployed contract addresses.
 type ContractMeta struct {
-	ID        uint
-	Name      string // Contract identifier, e.g. "data_contribution"
-	Address   string // Deployed contract address
-	CreatedAt time.Time
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name      string    `gorm:"type:varchar(255);not null;uniqueIndex;comment:contract identifier, e.g. 'data_contribution'" json:"name"`
+	Address   string    `gorm:"type:varchar(42);not null;comment:contract address" json:"address"`
+	CreatedAt time.Time `gorm:"type:datetime;autoCreateTime" json:"created_at"`
 }
 
 // GetContractAddress returns the contract address for a given name.
