@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"delong/internal/models"
 	"delong/internal/types"
@@ -9,7 +10,6 @@ import (
 	"delong/pkg/tee"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -65,15 +65,8 @@ func (r *TestReportResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
-	// Parse raw report file to structured data
-	objName := fmt.Sprintf("/v1/1/original/%s", reportFile.Filename)
-	err = r.MinioStore.UploadBytes(c, "diagnostic", objName, reportFile.Data, reportFile.ContentType)
-	if err != nil {
-		log.Printf("Failed to upload file to minio: %v", err)
-		responser.ResponseError(c, bizcode.MINIO_UPLOAD_FAIL)
-		return
-	}
-	result, err := r.ReportAnalyzer.Analyze(c, "minio", reportFile.ContentType, objName, userWallet.Hex())
+	// Parse raw report file to structured data using direct file upload
+	result, err := r.ReportAnalyzer.AnalyzeFileWithReader(c, reportFile.Filename, bytes.NewReader(reportFile.Data))
 	if err != nil {
 		log.Printf("Failed to analyze raw report test: %v", err)
 		responser.ResponseError(c, bizcode.REPORT_ANALYZE_FAIL)

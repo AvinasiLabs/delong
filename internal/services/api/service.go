@@ -30,7 +30,6 @@ type ApiService struct {
 type ApiServiceOptions struct {
 	Addr           string
 	IpfsStore      *db.IpfsStore
-	MinioStore     *db.MinioStore
 	MysqlDb        *gorm.DB
 	CtrCaller      *contracts.ContractCaller
 	KeyVault       *tee.KeyVault

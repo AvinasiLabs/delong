@@ -3,10 +3,12 @@ package analysis
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 type ReportAnalyzer struct {
@@ -18,62 +20,49 @@ func NewReportAnalyzer(endpoint string) *ReportAnalyzer {
 	return &ReportAnalyzer{endpoint: endpoint, httpCli: &http.Client{}}
 }
 
-type RecognizeRequest struct {
-	StorageType string `json:"storage_type"`
-	DataType    string `json:"data_type"`
-	DataPath    string `json:"data_path"`
-	UserID      string `json:"user_id"`
+// AnalyzeFile uploads a file directly to the analyzer endpoint and returns raw JSON bytes
+func (c *ReportAnalyzer) AnalyzeFile(ctx context.Context, filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("opening file: %w", err)
+	}
+	defer file.Close()
+
+	fileName := filepath.Base(filePath)
+	return c.AnalyzeFileWithReader(ctx, fileName, file)
 }
 
-type recognizeResponse struct {
-	Result string `json:"result"`
-}
+// AnalyzeFileWithReader uploads file content from a reader to the analyzer endpoint
+func (c *ReportAnalyzer) AnalyzeFileWithReader(ctx context.Context, fileName string, fileReader io.Reader) ([]byte, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
 
-type DiagnosticRequest struct {
-	UserID string `json:"user_id"`
-	SessID string `json:"sess_id"`
-}
-
-// Analyze performs recognize then diagnostic calls and returns raw JSON bytes
-func (c *ReportAnalyzer) Analyze(ctx context.Context, storageType, dataType, dataPath, userID string) ([]byte, error) {
-	req1 := RecognizeRequest{storageType, dataType, dataPath, userID}
-	sessAPI := fmt.Sprintf("%s/api/analyzer/diagno_analyzer/recognize", c.endpoint)
-	body1, err := c.doPost(ctx, sessAPI, req1)
+	part, err := writer.CreateFormFile("file", fileName)
 	if err != nil {
-		return nil, fmt.Errorf("recognize request failed: %w", err)
+		return nil, fmt.Errorf("creating form file: %w", err)
 	}
 
-	var resp1 recognizeResponse
-	if err := json.Unmarshal(body1, &resp1); err != nil {
-		return nil, fmt.Errorf("parsing recognize response: %w", err)
-	}
-
-	req2 := DiagnosticRequest{userID, resp1.Result}
-	analAPI := fmt.Sprintf("%s/api/analyzer/diagno_analyzer/diagnostic", c.endpoint)
-	body2, err := c.doPost(ctx, analAPI, req2)
+	_, err = io.Copy(part, fileReader)
 	if err != nil {
-		return nil, fmt.Errorf("diagnostic request failed: %w", err)
+		return nil, fmt.Errorf("copying file content: %w", err)
 	}
 
-	return body2, nil
-}
-
-// doPost sends a JSON payload and returns the response body
-func (c *ReportAnalyzer) doPost(ctx context.Context, url string, payload any) ([]byte, error) {
-	buf, err := json.Marshal(payload)
+	err = writer.Close()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("closing multipart writer: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
+	url := fmt.Sprintf("%s/api/analyzer/diagno_analyzer/analyze", c.endpoint)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := c.httpCli.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("executing request: %w", err)
 	}
 	defer resp.Body.Close()
 

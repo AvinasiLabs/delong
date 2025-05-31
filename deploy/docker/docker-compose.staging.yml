@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   mysql:
     image: mysql:8.0
@@ -8,8 +6,8 @@ services:
       MYSQL_DATABASE: delong_staging
     volumes:
       - mysql_staging_data:/var/lib/mysql
-    ports:
-      - "3307:3306"
+    expose:
+      - "3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
@@ -19,12 +17,11 @@ services:
   ipfs:
     image: ipfs/kubo:latest
     environment:
-      - IPFS_PATH=/data/ipfs
+      IPFS_PATH: /data/ipfs
     volumes:
       - ipfs_staging_data:/data/ipfs
-    ports:
-      - "5002:5001"
-      - "8081:8080"
+    expose:
+      - "5001"
     healthcheck:
       test: ["CMD", "ipfs", "id"]
       timeout: 10s
@@ -32,94 +29,34 @@ services:
     restart: unless-stopped
 
   anvil:
-    image: ghcr.io/foundry-rs/foundry:latest
-    command: anvil --host 0.0.0.0 --port 8545 --block-time 2
+    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
+    command: anvil --host 0.0.0.0 --port 8545 --block-time 2 --state /data/anvil/delong_state.json
     volumes:
-      - anvil_staging_data:/anvil_data
-    ports:
-      - "8546:8545"
+      - anvil_staging_data:/data/anvil
+    expose:
+      - "8545"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8545"]
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://localhost:8545"]
       timeout: 30s
       retries: 10
     restart: unless-stopped
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: delong_staging
-      MINIO_ROOT_PASSWORD: "delong_staging_2025_minio"
-    volumes:
-      - minio_staging_data:/data
-    ports:
-      - "9001:9000"
-      - "9002:9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  diagnostic-mock:
-    image: python:3.11-slim
-    command: |
-      sh -c "
-        pip install flask &&
-        cat > /app.py << 'EOF'
-        from flask import Flask, request, jsonify
-        import json
-        app = Flask(__name__)
-
-        @app.route('/health', methods=['GET'])
-        def health():
-            return jsonify({'status': 'healthy', 'service': 'diagnostic-mock-staging'})
-
-        @app.route('/analyze', methods=['POST'])
-        def analyze():
-            return jsonify({
-                'status': 'analyzed',
-                'result': 'staging_mock_analysis_complete',
-                'confidence': 0.92,
-                'processed_at': '2025-01-18T10:00:00Z',
-                'environment': 'staging',
-                'mock': True
-            })
-
-        if __name__ == '__main__':
-            app.run(host='0.0.0.0', port=8008, debug=True)
-        EOF
-        python /app.py
-      "
-    ports:
-      - "8009:8008"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
   delong:
-    image: ghcr.io/hammer111/delong:staging-latest
+    image: lilhammer/delong:latest
     environment:
-      - ENV=staging
-      - IPFS_ADDR=/ip4/ipfs/tcp/5001
-      - ETH_HTTP_URL=http://anvil:8545
-      - ETH_WS_URL=ws://anvil:8545
-      - CHAIN_ID=31337
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_AK=delong_staging
-      - MINIO_SK=delong_staging_2025_minio
-      - DIAGNOSTIC_SRV_ENDPOINT=http://diagnostic-mock:8008
-      - MYSQL_DSN=root:delong_staging_2025@tcp(mysql:3306)/delong_staging?charset=utf8mb4&parseTime=True&loc=Local
-      - DSTACK_SIMULATOR_ENDPOINT=/dev/null
-      - OFFICIAL_ACCOUNT_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-      - JWT_SECRET=phala_cloud_staging_jwt_secret_2025_demo
-      - LOG_LEVEL=debug
+      ENV: staging
+      IPFS_ADDR: /ip4/ipfs/tcp/5001
+      ETH_HTTP_URL: http://anvil:8545
+      ETH_WS_URL: ws://anvil:8545
+      CHAIN_ID: "31337"
+      DIAGNOSTIC_SRV_ENDPOINT: ${DIAGNOSTIC_SRV_ENDPOINT}
+      MYSQL_DSN: ${MYSQL_DSN}
+      OFFICIAL_ACCOUNT_PRIVATE_KEY: ${OFFICIAL_ACCOUNT_PRIVATE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - dataset_staging_storage:/data/delong_dataset
     ports:
-      - "8082:8080"
+      - "8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -127,54 +64,18 @@ services:
         condition: service_healthy
       anvil:
         condition: service_healthy
-      minio:
-        condition: service_healthy
-      diagnostic-mock:
-        condition: service_healthy
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       timeout: 10s
       retries: 5
       start_period: 30s
-
-  # Monitoring and logging for staging
-  prometheus:
-    image: prom/prometheus:latest
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/etc/prometheus/console_libraries"
-      - "--web.console.templates=/etc/prometheus/consoles"
-      - "--storage.tsdb.retention.time=200h"
-      - "--web.enable-lifecycle"
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_staging_data:/prometheus
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin_staging_2025
-      - GF_USERS_ALLOW_SIGN_UP=false
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_staging_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     restart: unless-stopped
 
 volumes:
   mysql_staging_data:
   ipfs_staging_data:
   anvil_staging_data:
-  minio_staging_data:
   dataset_staging_storage:
-  prometheus_staging_data:
-  grafana_staging_data:
 
 networks:
   default:

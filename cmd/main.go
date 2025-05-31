@@ -36,15 +36,6 @@ func main() {
 		log.Fatalf("Failed to create ipfs client: %v", err)
 	}
 
-	minioStore, err := db.NewMinioStore(
-		config.MinioEndpoint,
-		db.WithSecure(false),
-		db.WithCredentials(config.MinioAccessKey, config.MinioSecretKey),
-	)
-	if err != nil {
-		log.Fatalf("Failed to create minio client: %v", err)
-	}
-
 	mysqlDb, err := db.NewMysqlDb(config.MysqlDsn)
 	if err != nil {
 		log.Fatalf("Failed to create mysql client: %v", err)
@@ -88,7 +79,6 @@ func main() {
 	apiService := api.NewService(api.ApiServiceOptions{
 		Addr:           ":8080",
 		IpfsStore:      ipfsStore,
-		MinioStore:     minioStore,
 		MysqlDb:        mysqlDb,
 		CtrCaller:      ctrCaller,
 		KeyVault:       keyVault,

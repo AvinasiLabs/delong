@@ -28,7 +28,7 @@ services:
       retries: 5
 
   anvil:
-    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc-arm64
+    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
     command: anvil --host 0.0.0.0 --port 8545 --block-time 2 --state /data/anvil/delong_state.json
     volumes:
       - ./data/anvil:/data/anvil
@@ -50,7 +50,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: hammer111/delong:dev
+    image: lilhammer/delong:latest
     environment:
       - IPFS_ADDR=/ip4/127.0.0.1/tcp/5001
       - ETH_HTTP_URL=http://anvil:8545
