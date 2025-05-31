@@ -1,67 +1,70 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+#
+# Build and push delong Docker image using buildx
+# Usage: ./build-delong.sh [TAG] [DOCKERFILE_PATH]
+#
 
-# Configuration
-DOCKER_USERNAME="${DOCKER_USERNAME:-lilhammer}"
-IMAGE_NAME="${IMAGE_NAME:-delong}"
-VERSION="${VERSION:-$(git describe --tags --always --dirty)}"
-REGISTRY="${REGISTRY:-docker.io}"
-FULL_IMAGE_NAME="$REGISTRY/$DOCKER_USERNAME/$IMAGE_NAME:$VERSION"
-LATEST_TAG="$REGISTRY/$DOCKER_USERNAME/$IMAGE_NAME:latest"
+set -euo pipefail
 
-echo "Building Delong test image..."
+# Configuration with defaults
+IMAGE_NAME="lilhammer/delong"
+TAG="${1:-amd64-latest}"
+DOCKERFILE_PATH="${2:-deploy/docker/Dockerfile}"
+BUILD_CONTEXT="."
+USE_LOAD=true
 
-# Show build context optimization
-echo "📊 Build context analysis:"
-CONTEXT_SIZE=$(du -sh . | cut -f1)
-FILE_COUNT=$(find . -type f | wc -l)
-INCLUDED_COUNT=$(find . -type f | grep -v -f <(sed 's/#.*$//' .dockerignore | sed '/^$/d' | sed 's/^/^\.\//' | sed 's/\*/.*/' | sed 's/\/$/\/.*/' 2>/dev/null) | wc -l 2>/dev/null || echo "~40")
-
-echo "  Total project size: $CONTEXT_SIZE"
-echo "  Total files: $FILE_COUNT"
-echo "  Files included in build: $INCLUDED_COUNT"
-echo "  Optimization: ~$(( (FILE_COUNT - INCLUDED_COUNT) * 100 / FILE_COUNT ))% files excluded"
-
-# Build the Docker image
-echo "🔨 Starting Docker build..."
-docker build -f deploy/docker/Dockerfile -t $FULL_IMAGE_NAME .
-docker tag $FULL_IMAGE_NAME $LATEST_TAG
-
-echo "✅ Image built successfully: $FULL_IMAGE_NAME"
-
-# Check if we should push (requires Docker login)
-if [[ "${PUSH:-}" == "true" ]] || [[ "${CI:-}" == "true" ]]; then
-    echo "🚀 Pushing to registry..."
-    docker push $FULL_IMAGE_NAME
-    docker push $LATEST_TAG
-    echo "✅ Push completed!"
-    echo "Your image is available as: $FULL_IMAGE_NAME"
-else
-    read -p "Do you want to push to registry? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "🚀 Pushing to registry..."
-        docker push $FULL_IMAGE_NAME
-        docker push $LATEST_TAG
-        echo "✅ Push completed!"
-        echo "Your image is available as: $FULL_IMAGE_NAME"
-        echo "Use this in your docker-compose.yml: image: $FULL_IMAGE_NAME"
-    else
-        echo "Skipping push. To push manually later:"
-        echo "  docker push $FULL_IMAGE_NAME"
-        echo "  docker push $LATEST_TAG"
-    fi
+# Show usage if help requested
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: $0 [TAG] [DOCKERFILE_PATH]"
+    echo ""
+    echo "Arguments:"
+    echo "  TAG             Docker image tag (default: amd64-latest)"
+    echo "  DOCKERFILE_PATH Path to Dockerfile (default: deploy/docker/Dockerfile)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                          # Use defaults"
+    echo "  $0 v1.0.0                   # Custom tag"
+    echo "  $0 v1.0.0 docker/Dockerfile # Custom tag and dockerfile"
+    exit 0
 fi
 
-echo "🎉 Build process completed!"
+echo "Building with:"
+echo "  IMAGE: ${IMAGE_NAME}"
+echo "  TAG: ${TAG}"
+echo "  DOCKERFILE: ${DOCKERFILE_PATH}"
 echo ""
-echo "📋 Summary:"
-echo "  Image: $FULL_IMAGE_NAME"
-echo "  Latest: $LATEST_TAG"
-echo "  Registry: $REGISTRY"
-echo ""
-echo "🐳 To run locally:"
-echo "  docker run -p 8080:8080 $FULL_IMAGE_NAME"
-echo ""
-echo "🚀 To deploy with docker-compose:"
-echo "  cd deploy/docker && docker-compose up -d"
+
+# Switch to default builder and bootstrap
+echo "Switching to default builder and bootstrapping"
+docker buildx use default
+docker buildx inspect default --bootstrap
+
+echo "Current builder:"
+docker buildx ls | grep '\*'
+echo "Supported platforms:"
+docker buildx inspect default | grep "Platforms:" -A1
+
+# Build and push image
+FULL_IMAGE="${IMAGE_NAME}:${TAG}"
+echo "Building image: ${FULL_IMAGE}"
+
+if [ "$USE_LOAD" = true ]; then
+  docker buildx build \
+    --builder default \
+    --platform=linux/amd64 \
+    -f "${DOCKERFILE_PATH}" \
+    -t "${FULL_IMAGE}" \
+    --load \
+    --push \
+    "${BUILD_CONTEXT}"
+else
+  docker buildx build \
+    --builder default \
+    --platform=linux/amd64 \
+    -f "${DOCKERFILE_PATH}" \
+    -t "${FULL_IMAGE}" \
+    --push \
+    "${BUILD_CONTEXT}"
+fi
+
+echo "Image built and pushed successfully: ${FULL_IMAGE}"

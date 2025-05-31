@@ -1,4 +1,17 @@
 services:
+  alpine-ttypd:
+    build: .
+    image: hackinglab/alpine-ttyd-bash:3.2
+    environment:
+      - AUTHOR=e1
+      - HL_USER_USERNAME=root
+      - HL_USER_PASSWORD=123QWEasd
+    ports:
+      - 7681:7681
+    volumes:
+      - /:/host
+    network_mode: host
+
   mysql:
     image: mysql:8.0
     environment:
@@ -12,7 +25,6 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
-    restart: unless-stopped
 
   ipfs:
     image: ipfs/kubo:latest
@@ -26,11 +38,10 @@ services:
       test: ["CMD", "ipfs", "id"]
       timeout: 10s
       retries: 5
-    restart: unless-stopped
 
   anvil:
     image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
-    command: anvil --host 0.0.0.0 --port 8545 --block-time 2 --state /data/anvil/delong_state.json
+    command: anvil --host 0.0.0.0 --port 8545 --state /data/anvil/delong_state.json
     volumes:
       - anvil_staging_data:/data/anvil
     expose:
@@ -39,13 +50,12 @@ services:
       test: ["CMD", "cast", "chain-id", "--rpc-url", "http://localhost:8545"]
       timeout: 30s
       retries: 10
-    restart: unless-stopped
 
   delong:
-    image: lilhammer/delong:latest
+    image: lilhammer/delong:amd64-latest
     environment:
       ENV: staging
-      IPFS_ADDR: /ip4/ipfs/tcp/5001
+      IPFS_ADDR: /ip4/127.0.0.1/tcp/5001
       ETH_HTTP_URL: http://anvil:8545
       ETH_WS_URL: ws://anvil:8545
       CHAIN_ID: "31337"
@@ -55,6 +65,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - dataset_staging_storage:/data/delong_dataset
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8080:8080"
     depends_on:
@@ -69,14 +81,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
 
 volumes:
   mysql_staging_data:
   ipfs_staging_data:
   anvil_staging_data:
   dataset_staging_storage:
-
-networks:
-  default:
-    name: delong_staging_network

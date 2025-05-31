@@ -25,9 +25,6 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Create necessary directories
-RUN mkdir -p /data/delong_dataset
-
 # Expose port
 EXPOSE 8080
 
