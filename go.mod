@@ -6,6 +6,7 @@ require (
 	github.com/Dstack-TEE/dstack/sdk/go v0.0.0-20250418002230-08cd5bb86995
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/ethereum/go-ethereum v1.15.8
+	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-gonic/contrib v0.0.0-20250113154928-93b827325fec
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.26.0

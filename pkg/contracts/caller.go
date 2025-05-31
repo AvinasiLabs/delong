@@ -109,7 +109,7 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 	if err != nil {
 		return err
 	}
-	log.Printf("Tee eth account %v balance: %s", toAddr, WeiToEthString(balanceWei))
+	log.Printf("Balance of tee eth account %v is %s", toAddr, WeiToEthString(balanceWei))
 
 	thresholdWei := EthToWei(c.thresholdEth)
 	if balanceWei.Cmp(thresholdWei) >= 0 {

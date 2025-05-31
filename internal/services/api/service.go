@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/contrib/rest"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -54,6 +55,16 @@ func (s *ApiService) Name() string {
 }
 
 func (s *ApiService) Init(ctx context.Context) error {
+	// CORS allow all
+	s.engine.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"*"},
+		ExposeHeaders:    []string{"*"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	jwtMiddleware := NewJwtMiddleware(s.JwtSecret)
 
 	// Register routes
