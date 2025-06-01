@@ -14,7 +14,8 @@ import (
 // Claims defines the structure of JWT claims used in the application.
 type Claims struct {
 	// UserId   int    `json:"user_id"`
-	Username string `json:"user_name"`
+	// Username string `json:"user_name"`
+	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -76,7 +77,8 @@ func (j *JwtMiddleware) Auth() gin.HandlerFunc {
 		}
 
 		// c.Set("user_id", claims.UserID)
-		c.Set("username", claims.Username)
+		// c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
 		c.Set("claims", claims)
 
 		c.Next()
@@ -93,12 +95,21 @@ func (j *JwtMiddleware) Auth() gin.HandlerFunc {
 // }
 
 // GetUsername retrieves the username from the Gin context.
-func GetUsername(c *gin.Context) (string, bool) {
-	username, exists := c.Get("username")
+// func GetUsername(c *gin.Context) (string, bool) {
+// 	username, exists := c.Get("username")
+// 	if !exists {
+// 		return "", false
+// 	}
+// 	return username.(string), true
+// }
+
+// GetRole retrieves the role from the Gin context.
+func GetRole(c *gin.Context) (string, bool) {
+	role, exists := c.Get("role")
 	if !exists {
 		return "", false
 	}
-	return username.(string), true
+	return role.(string), true
 }
 
 // GetClaims retrieves the full JWT claims from the Gin context.

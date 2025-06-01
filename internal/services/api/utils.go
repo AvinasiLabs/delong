@@ -52,3 +52,12 @@ func extractRepoName(link string) (string, error) {
 
 	return parts[0] + "/" + parts[1], nil
 }
+
+func isAdmin(c *gin.Context) (bool, error) {
+	role, exist := GetRole(c)
+	if !exist {
+		return false, fmt.Errorf("failed to get jwt payload of role")
+	}
+
+	return role == "admin", nil
+}

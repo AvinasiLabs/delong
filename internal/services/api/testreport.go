@@ -72,8 +72,22 @@ func (r *TestReportResource) CreateHandler(c *gin.Context) {
 		responser.ResponseError(c, bizcode.REPORT_ANALYZE_FAIL)
 		return
 	}
+
+	var anaResp types.AnalyzeResponse
+	err = json.Unmarshal(result, &anaResp)
+	if err != nil {
+		log.Printf("Failed to deserialize wrapper response: %v", err)
+		responser.ResponseError(c, bizcode.REPORT_DESERIALIZE_FAIL)
+		return
+	}
+	if !anaResp.Success {
+		log.Printf("Report analysis was not successful")
+		responser.ResponseError(c, bizcode.REPORT_ANALYZE_FAIL)
+		return
+	}
+
 	var raw types.RawReport
-	err = json.Unmarshal(result, &raw)
+	err = json.Unmarshal(anaResp.Data.Report, &raw)
 	if err != nil {
 		log.Printf("Failed to deserialize raw report: %v", err)
 		responser.ResponseError(c, bizcode.REPORT_DESERIALIZE_FAIL)

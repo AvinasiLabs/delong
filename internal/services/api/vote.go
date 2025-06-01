@@ -41,6 +41,18 @@ func (r *VoteResource) SetVotingDuration(c *gin.Context) {
 		return
 	}
 
+	sure, err := isAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !sure {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	tx, err := r.CtrCaller.SetVotingDuration(c.Request.Context(), req.Duration)
 	if err != nil {
 		log.Printf("Failed to call setVotingDuration on ethereum: %v", err)

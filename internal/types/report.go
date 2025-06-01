@@ -2,6 +2,7 @@ package types
 
 import (
 	"delong/internal/models"
+	"encoding/json"
 	"time"
 )
 
@@ -9,6 +10,16 @@ type ReportFile struct {
 	Data        []byte
 	Filename    string
 	ContentType string
+}
+
+// Define temporary wrapper structure to handle the new response format
+type AnalyzeResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Report         json.RawMessage `json:"report"`
+		ProcessingTime float64         `json:"processingTime"`
+		FileInfo       any             `json:"fileInfo"`
+	} `json:"data"`
 }
 
 type RawReport map[string][]TestResultItem

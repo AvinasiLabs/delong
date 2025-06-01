@@ -25,6 +25,18 @@ func (r *CommitteeResource) CreateHandler(c *gin.Context) {
 	}
 	memberWallet := common.HexToAddress(req.MemberWallet)
 
+	sure, err := isAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !sure {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	dbtx := r.MysqlDb.Begin()
 	defer func() {
 		if r := recover(); r != nil {

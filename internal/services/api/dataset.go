@@ -23,6 +23,18 @@ func (r *DatasetResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
+	sure, err := isAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !sure {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	dataset, err := models.CreateDataset(r.MysqlDb, req.Name, req.UiName, req.Description)
 	if err != nil {
 		log.Printf("Failed to create dataset in db: %v", err)

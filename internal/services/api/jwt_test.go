@@ -13,9 +13,9 @@ import (
 const testSecret = "test-secret-key-123"
 
 // createTestToken creates a test JWT token with HS256 algorithm
-func createTestToken(username string, expiresAt time.Time) (string, error) {
+func createTestToken(role string, expiresAt time.Time) (string, error) {
 	claims := &Claims{
-		Username: username,
+		Role: role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -39,10 +39,10 @@ func setupTestRouter() *gin.Engine {
 	protected := router.Group("/api")
 	protected.Use(jwtMiddleware.Auth())
 	protected.GET("/test", func(c *gin.Context) {
-		username, _ := GetUsername(c)
+		role, _ := GetRole(c)
 		c.JSON(200, gin.H{
-			"message":  "success",
-			"username": username,
+			"message": "success",
+			"role":    role,
 		})
 	})
 
