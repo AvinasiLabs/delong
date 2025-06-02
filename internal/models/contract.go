@@ -27,6 +27,12 @@ func GetContractAddress(db *gorm.DB, name string) (string, error) {
 	return meta.Address, nil
 }
 
+func GetContracts(db *gorm.DB) ([]ContractMeta, error) {
+	var metas []ContractMeta
+	err := db.Order("created_at DESC").Find(&metas).Error
+	return metas, err
+}
+
 // SaveContractAddress stores a new contract address.
 func SaveContractAddress(db *gorm.DB, name string, address string) error {
 	meta := &ContractMeta{

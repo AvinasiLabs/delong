@@ -8,64 +8,49 @@ import (
 )
 
 type Config struct {
-	IpfsApiAddr string
-	EthHttpUrl  string
-	EthWsUrl    string
-	ChainId     int64
-
-	MinioEndpoint  string
-	MinioAccessKey string
-	MinioSecretKey string
-
-	DiagnosticSrvEndpoint string
-
+	IpfsApiAddr               string
+	EthHttpUrl                string
+	EthWsUrl                  string
+	ChainId                   int64
+	DiagnosticSrvEndpoint     string
 	MysqlDsn                  string
 	OfficialAccountPrivateKey string
-
-	JwtSecret string
+	JwtSecret                 string
+	DstackVersion             string
 }
 
 func NewConfig(
 	ipfsApiAddr string,
 	ethHttpUrl, ethWsUrl string, chainId int64,
-	minioEndpoint, minioAccessKey, minioSecretKey string,
 	diagnosticSrvEndpoint string,
 	mysqlDsn string,
 	officialAccountPrivateKey string,
 	jwtSecret string,
+	DstackVersion string,
 ) *Config {
 	return &Config{
 		IpfsApiAddr:               ipfsApiAddr,
 		EthHttpUrl:                ethHttpUrl,
 		EthWsUrl:                  ethWsUrl,
 		ChainId:                   chainId,
-		MinioEndpoint:             minioEndpoint,
-		MinioAccessKey:            minioAccessKey,
-		MinioSecretKey:            minioSecretKey,
 		DiagnosticSrvEndpoint:     diagnosticSrvEndpoint,
 		MysqlDsn:                  mysqlDsn,
 		OfficialAccountPrivateKey: officialAccountPrivateKey,
 		JwtSecret:                 jwtSecret,
+		DstackVersion:             DstackVersion,
 	}
 }
 
 const (
-	ENVKEY_IPFS_ADDR    = "IPFS_ADDR"
-	ENVKEY_CHAIN_ID     = "CHAIN_ID"
-	ENVKEY_ETH_HTTP_URL = "ETH_HTTP_URL"
-	ENVKEY_ETH_WS_URL   = "ETH_WS_URL"
-
-	ENVKEY_MINIO_ENDPOINT = "MINIO_ENDPOINT"
-	ENVKEY_MINIO_AK       = "MINIO_AK"
-	ENVKEY_MINIO_SK       = "MINIO_SK"
-
-	ENVKEY_DIAGNOSTIC_SRV_ENDPOINT = "DIAGNOSTIC_SRV_ENDPOINT"
-
-	ENVKEY_MYSQL_DSN = "MYSQL_DSN"
-
+	ENVKEY_IPFS_ADDR                    = "IPFS_ADDR"
+	ENVKEY_CHAIN_ID                     = "CHAIN_ID"
+	ENVKEY_ETH_HTTP_URL                 = "ETH_HTTP_URL"
+	ENVKEY_ETH_WS_URL                   = "ETH_WS_URL"
+	ENVKEY_DIAGNOSTIC_SRV_ENDPOINT      = "DIAGNOSTIC_SRV_ENDPOINT"
+	ENVKEY_MYSQL_DSN                    = "MYSQL_DSN"
 	ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY = "OFFICIAL_ACCOUNT_PRIVATE_KEY"
-
-	ENVKEY_JWT_SECRET = "JWT_SECRET"
+	ENVKEY_JWT_SECRET                   = "JWT_SECRET"
+	ENVKEY_DSTACK_VERSION               = "DSTACK_VERSION"
 )
 
 func LoadConfigFromEnv() (*Config, error) {
@@ -77,37 +62,29 @@ func LoadConfigFromEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	minioEndpoint := os.Getenv(ENVKEY_MINIO_ENDPOINT)
-	minioAccessKey := os.Getenv(ENVKEY_MINIO_AK)
-	minioSecretKey := os.Getenv(ENVKEY_MINIO_SK)
 	diagnosticSrvEndpoint := os.Getenv(ENVKEY_DIAGNOSTIC_SRV_ENDPOINT)
 	mysqlDsn := os.Getenv(ENVKEY_MYSQL_DSN)
 	officialAccountPk := os.Getenv(ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY)
-
 	jwtSecret := os.Getenv(ENVKEY_JWT_SECRET)
+	versionDstack := os.Getenv(ENVKEY_DSTACK_VERSION)
 	return NewConfig(
 		ipfsApiAddr,
 		ethHttpUrl, ethWsUrl, chainId,
-		minioEndpoint, minioAccessKey, minioSecretKey,
 		diagnosticSrvEndpoint,
 		mysqlDsn,
 		officialAccountPk,
 		jwtSecret,
+		versionDstack,
 	), nil
 }
 
 func (c *Config) String() string {
 	var builder strings.Builder
-
 	builder.WriteString("\nConfiguration:\n")
 	builder.WriteString(fmt.Sprintf("\tIPFS API Address: %s\n", c.IpfsApiAddr))
 	builder.WriteString(fmt.Sprintf("\tEthereum RPC URL: %s\n", c.EthHttpUrl))
 	builder.WriteString(fmt.Sprintf("\tEthereum WS URL: %s\n", c.EthWsUrl))
 	builder.WriteString(fmt.Sprintf("\tChain ID: %d\n", c.ChainId))
-	builder.WriteString(fmt.Sprintf("\tMinio Endpoint: %s\n", c.MinioEndpoint))
-	builder.WriteString(fmt.Sprintf("\tMinio Access Key: %s\n", c.MinioAccessKey))
-	builder.WriteString(fmt.Sprintf("\tMinio Secret Key: %s\n", c.MinioSecretKey))
 	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Endpoint: %s\n", c.DiagnosticSrvEndpoint))
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
 	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))

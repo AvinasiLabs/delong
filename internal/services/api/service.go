@@ -91,6 +91,9 @@ func (s *ApiService) Init(ctx context.Context) error {
 	rest.CRUD(apiGroup, "/votes", votes)
 	apiGroup.POST("/set-voting-duration", votes.SetVotingDuration)
 
+	metas := &ContractMetaResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/contracts", metas)
+
 	return nil
 }
 

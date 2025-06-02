@@ -133,7 +133,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	keyVault := tee.NewKeyVault()
+	keyVault := tee.NewKeyVaultFromConfig(config.DstackVersion)
 	ethAcc, err := keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		t.Fatal(err)

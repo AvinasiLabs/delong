@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
 	"io"
 	"sync"
 
-	"github.com/Dstack-TEE/dstack/sdk/go/tappd"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/hkdf"
+)
+
+const (
+	VersionTappd  = "tappd"
+	VersionDstack = "dstack"
 )
 
 type EthereumAccount struct {
@@ -21,58 +22,71 @@ type EthereumAccount struct {
 }
 
 type KeyVault struct {
-	client       *tappd.TappdClient
-	cache        sync.Map // map[string][]byte
+	adapter      IDstackClient
 	ethCache     sync.Map // map[string]*EthereumAccount
 	symmKeyCache sync.Map // map[string][]byte
 }
 
-func NewKeyVault(opts ...tappd.TappdClientOption) *KeyVault {
+func NewKeyVault(adapter IDstackClient) *KeyVault {
 	return &KeyVault{
-		client:       tappd.NewTappdClient(opts...),
-		cache:        sync.Map{},
+		adapter:      adapter,
 		ethCache:     sync.Map{},
 		symmKeyCache: sync.Map{},
 	}
 }
 
-func (t *KeyVault) getRawKey(ctx context.Context, kc *KeyContext) ([]byte, error) {
-	cacheKey := kc.CacheKey()
-	val, ok := t.cache.Load(cacheKey)
-	if ok {
-		return val.([]byte), nil
+// NewKeyVaultFromConfig create KeyVault via config
+func NewKeyVaultFromConfig(version string) *KeyVault {
+	var client IDstackClient
+	switch version {
+	case VersionTappd:
+		client = NewTappdClientAdapter()
+	case VersionDstack:
+		client = NewDstackClientAdapter()
+	default:
+		panic("unsupported client type")
 	}
 
-	resp, err := t.client.DeriveKey(ctx, kc.Path())
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode([]byte(resp.Key))
-	if block == nil {
-		return nil, fmt.Errorf("Failed to decode PEM block")
-	}
-
-	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse PKCS8 private key: %w", err)
-	}
-
-	ecdsaKey, ok := privateKey.(*ecdsa.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("private key is not an ECDSA key")
-	}
-
-	raw := ecdsaKey.D.Bytes()
-
-	// raw, err := hex.DecodeString(keyStr)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	t.cache.Store(cacheKey, raw)
-	return raw, nil
+	return NewKeyVault(client)
 }
+
+// func (t *KeyVault) getRawKey(ctx context.Context, kc *KeyContext) ([]byte, error) {
+// 	cacheKey := kc.CacheKey()
+// 	val, ok := t.cache.Load(cacheKey)
+// 	if ok {
+// 		return val.([]byte), nil
+// 	}
+
+// 	resp, err := t.client.DeriveKey(ctx, kc.Path())
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	block, _ := pem.Decode([]byte(resp.Key))
+// 	if block == nil {
+// 		return nil, fmt.Errorf("Failed to decode PEM block")
+// 	}
+
+// 	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to parse PKCS8 private key: %w", err)
+// 	}
+
+// 	ecdsaKey, ok := privateKey.(*ecdsa.PrivateKey)
+// 	if !ok {
+// 		return nil, fmt.Errorf("private key is not an ECDSA key")
+// 	}
+
+// 	raw := ecdsaKey.D.Bytes()
+
+// 	// raw, err := hex.DecodeString(keyStr)
+// 	// if err != nil {
+// 	// 	return nil, err
+// 	// }
+
+// 	t.cache.Store(cacheKey, raw)
+// 	return raw, nil
+// }
 
 func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, length int) ([]byte, error) {
 	cacheKey := kc.CacheKey()
@@ -80,7 +94,8 @@ func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, lengt
 		return val.([]byte), nil
 	}
 
-	raw, err := t.getRawKey(ctx, kc)
+	// raw, err := t.getRawKey(ctx, kc)
+	raw, err := t.adapter.DeriveKey(ctx, kc)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +114,15 @@ func (t *KeyVault) DeriveEthereumAccount(ctx context.Context, kc *KeyContext) (*
 		return val.(*EthereumAccount), nil
 	}
 
-	raw, err := t.getRawKey(ctx, kc)
+	// raw, err := t.getRawKey(ctx, kc)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	raw, err := t.adapter.DeriveKey(ctx, kc)
 	if err != nil {
 		return nil, err
 	}
+
 	priv, err := crypto.ToECDSA(raw)
 	if err != nil {
 		return nil, err
