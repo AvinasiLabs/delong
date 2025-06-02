@@ -13,12 +13,12 @@ services:
     network_mode: host
 
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4.5
     environment:
-      MYSQL_ROOT_PASSWORD: delong_staging_2025
-      MYSQL_DATABASE: delong_staging
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     volumes:
-      - mysql_staging_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     expose:
       - "3306"
     healthcheck:
@@ -52,14 +52,13 @@ services:
       retries: 10
 
   delong:
-    image: lilhammer/delong:amd64-latest
+    image: lilhammer/delong:amd64-7309037
     environment:
-      APP_ENV: staging
-      IPFS_ADDR: /ip4/127.0.0.1/tcp/5001
-      ETH_HTTP_URL: http://anvil:8545
-      ETH_WS_URL: ws://anvil:8545
-      CHAIN_ID: "31337"
-      DSTACK_VERSION: "tappd"
+      APP_ENV: ${APP_ENV}
+      IPFS_ADDR: ${IPFS_ADDR}
+      ETH_HTTP_URL: ${ETH_HTTP_URL}
+      ETH_WS_URL: ${ETH_WS_URL}
+      CHAIN_ID: ${CHAIN_ID}
       DIAGNOSTIC_SRV_ENDPOINT: ${DIAGNOSTIC_SRV_ENDPOINT}
       MYSQL_DSN: ${MYSQL_DSN}
       OFFICIAL_ACCOUNT_PRIVATE_KEY: ${OFFICIAL_ACCOUNT_PRIVATE_KEY}
@@ -84,7 +83,7 @@ services:
       start_period: 30s
 
 volumes:
-  mysql_staging_data:
+  mysql_data:
   ipfs_staging_data:
   anvil_staging_data:
   dataset_staging_storage:

@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"io"
+	"log"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -39,7 +40,7 @@ func NewKeyVaultFromConfig(appenv string) *KeyVault {
 	case "staging":
 		client = NewTappdClientAdapter()
 	default:
-		panic("unsupported client type")
+		log.Fatalf("Unsupported app env: %v", appenv)
 	}
 
 	return NewKeyVault(client)
