@@ -16,7 +16,7 @@ type Config struct {
 	MysqlDsn                  string
 	OfficialAccountPrivateKey string
 	JwtSecret                 string
-	DstackVersion             string
+	AppEnv                    string
 }
 
 func NewConfig(
@@ -26,7 +26,7 @@ func NewConfig(
 	mysqlDsn string,
 	officialAccountPrivateKey string,
 	jwtSecret string,
-	DstackVersion string,
+	appEnv string,
 ) *Config {
 	return &Config{
 		IpfsApiAddr:               ipfsApiAddr,
@@ -37,7 +37,7 @@ func NewConfig(
 		MysqlDsn:                  mysqlDsn,
 		OfficialAccountPrivateKey: officialAccountPrivateKey,
 		JwtSecret:                 jwtSecret,
-		DstackVersion:             DstackVersion,
+		AppEnv:                    appEnv,
 	}
 }
 
@@ -50,7 +50,7 @@ const (
 	ENVKEY_MYSQL_DSN                    = "MYSQL_DSN"
 	ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY = "OFFICIAL_ACCOUNT_PRIVATE_KEY"
 	ENVKEY_JWT_SECRET                   = "JWT_SECRET"
-	ENVKEY_DSTACK_VERSION               = "DSTACK_VERSION"
+	ENVKEY_APP_ENV                      = "APP_ENV"
 )
 
 func LoadConfigFromEnv() (*Config, error) {
@@ -66,7 +66,7 @@ func LoadConfigFromEnv() (*Config, error) {
 	mysqlDsn := os.Getenv(ENVKEY_MYSQL_DSN)
 	officialAccountPk := os.Getenv(ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY)
 	jwtSecret := os.Getenv(ENVKEY_JWT_SECRET)
-	versionDstack := os.Getenv(ENVKEY_DSTACK_VERSION)
+	appEnv := os.Getenv(ENVKEY_APP_ENV)
 	return NewConfig(
 		ipfsApiAddr,
 		ethHttpUrl, ethWsUrl, chainId,
@@ -74,13 +74,14 @@ func LoadConfigFromEnv() (*Config, error) {
 		mysqlDsn,
 		officialAccountPk,
 		jwtSecret,
-		versionDstack,
+		appEnv,
 	), nil
 }
 
 func (c *Config) String() string {
 	var builder strings.Builder
 	builder.WriteString("\nConfiguration:\n")
+	builder.WriteString(fmt.Sprintf("\tAPP ENV: %s\n", c.AppEnv))
 	builder.WriteString(fmt.Sprintf("\tIPFS API Address: %s\n", c.IpfsApiAddr))
 	builder.WriteString(fmt.Sprintf("\tEthereum RPC URL: %s\n", c.EthHttpUrl))
 	builder.WriteString(fmt.Sprintf("\tEthereum WS URL: %s\n", c.EthWsUrl))

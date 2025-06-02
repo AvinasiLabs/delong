@@ -47,7 +47,7 @@ func main() {
 
 	reportAnalyzer := analysis.NewReportAnalyzer(config.DiagnosticSrvEndpoint)
 
-	keyVault := tee.NewKeyVaultFromConfig(config.DstackVersion)
+	keyVault := tee.NewKeyVaultFromConfig(config.AppEnv)
 
 	fundingPrivKey, err := crypto.HexToECDSA(config.OfficialAccountPrivateKey)
 	if err != nil {

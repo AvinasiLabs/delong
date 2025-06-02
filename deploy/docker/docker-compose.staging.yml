@@ -54,7 +54,7 @@ services:
   delong:
     image: lilhammer/delong:amd64-latest
     environment:
-      ENV: staging
+      APP_ENV: staging
       IPFS_ADDR: /ip4/127.0.0.1/tcp/5001
       ETH_HTTP_URL: http://anvil:8545
       ETH_WS_URL: ws://anvil:8545
