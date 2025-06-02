@@ -85,6 +85,7 @@ func main() {
 		Notifier:       notifier,
 		ReportAnalyzer: reportAnalyzer,
 		JwtSecret:      config.JwtSecret,
+		AppEnv:         config.AppEnv,
 	})
 
 	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{

@@ -50,7 +50,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: lilhammer/delong:amd64-bd98b40
+    image: lilhammer/delong:arm64-v8-463a237
     environment:
       - APP_ENV=local
       - IPFS_ADDR=/ip4/127.0.0.1/tcp/5001
