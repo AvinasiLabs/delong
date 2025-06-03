@@ -109,7 +109,7 @@ func (r *AlgoExeResource) CreateHandler(c *gin.Context) {
 
 func (r *AlgoExeResource) ListHandler(c *gin.Context) {
 	page, pageSize := parsePageParams(c)
-	algoexes, total, err := models.GetAlgoExes(r.MysqlDb, page, pageSize)
+	algoexes, total, err := models.GetAlgoExesWithAlgoInfo(r.MysqlDb, page, pageSize)
 	if err != nil {
 		log.Printf("Failed to list confirmed algos: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_READ_FAIL)

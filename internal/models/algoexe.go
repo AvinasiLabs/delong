@@ -44,6 +44,14 @@ type AlgoExe struct {
 	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
+// AlgoExeWithAlgo represents a joined view of AlgoExe and related algorithm metadata.
+type AlgoExeWithAlgo struct {
+	AlgoExe
+	AlgoName string `json:"algo_name"`
+	AlgoLink string `json:"algo_link"`
+	Cid      string `json:"cid"`
+}
+
 // CreateAlgoExecution creates a new algorithm execution record
 func CreateAlgoExecution(db *gorm.DB, algoID uint, dataset, scientist string) (*AlgoExe, error) {
 	execution := &AlgoExe{
@@ -71,20 +79,34 @@ func GetPendingAlgoExesConfirmed(db *gorm.DB) ([]AlgoExe, error) {
 	return executions, err
 }
 
-func GetAlgoExes(db *gorm.DB, page, pageSize int) ([]AlgoExe, int64, error) {
-	var algoExes []AlgoExe
+// GetAlgoExesWithAlgoInfo retrieves paginated execution records with additional algorithm information.
+func GetAlgoExesWithAlgoInfo(db *gorm.DB, page, pageSize int) ([]AlgoExeWithAlgo, int64, error) {
+	var algoExes []AlgoExeWithAlgo
 	var total int64
 
-	tx := db.Model(&AlgoExe{}).Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION)
+	tx := db.Model(&AlgoExe{}).
+		Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION).
+		Joins("JOIN algos ON algos.id = algo_exes.algo_id")
 	if err := tx.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	offset := (page - 1) * pageSize
-	err := tx.Offset(offset).Limit(pageSize).Order("algo_exes.created_at DESC").Find(&algoExes).Error
+	err := tx.Select(`
+			algo_exes.*,
+			algos.name as algo_name,
+			algos.algo_link,
+			algos.cid
+			`).
+		Offset(offset).
+		Limit(pageSize).
+		Order("algo_exes.created_at DESC").
+		Find(&algoExes).Error
+
 	return algoExes, total, err
 }
 
+// GetAlgoExeById retrieves a single algorithm execution record by its ID, including confirmed transaction join.
 func GetAlgoExeById(db *gorm.DB, id uint) (*AlgoExe, error) {
 	var algoExe AlgoExe
 	err := db.Model(&AlgoExe{}).Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION).First(&algoExe, id).Error
@@ -94,6 +116,7 @@ func GetAlgoExeById(db *gorm.DB, id uint) (*AlgoExe, error) {
 	return &algoExe, nil
 }
 
+// GetReviewingAlgoExes retrieves executions currently under review with confirmed blockchain transactions.
 func GetReviewingAlgoExes(db *gorm.DB) ([]AlgoExe, error) {
 	var algoExes []AlgoExe
 	err := db.Model(&AlgoExe{}).
@@ -106,6 +129,7 @@ func GetReviewingAlgoExes(db *gorm.DB) ([]AlgoExe, error) {
 	return algoExes, nil
 }
 
+// UpdateReviewStatus updates the review status of an algorithm execution.
 func UpdateReviewStatus(db *gorm.DB, id uint, reviewStatus string) error {
 	return db.Model(&AlgoExe{ID: id}).Update("review_status", reviewStatus).Error
 }
@@ -175,4 +199,10 @@ func UpdateExecutionCompleted(db *gorm.DB, executionID uint, result string, erro
 // 	executions := AlgoExe{}
 // 	err := db.Where("algo_id = ?", algoID).Order("created_at DESC").First(&executions).Error
 // 	return &executions, err
+// }
+
+// func withAlgoJoin(db *gorm.DB) *gorm.DB {
+// 	return db.Model(&AlgoExe{}).
+// 		Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION).
+// 		Joins("JOIN algos ON algos.id = algo_exes.algo_id")
 // }
