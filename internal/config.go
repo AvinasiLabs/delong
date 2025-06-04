@@ -12,7 +12,8 @@ type Config struct {
 	EthHttpUrl                string
 	EthWsUrl                  string
 	ChainId                   int64
-	DiagnosticSrvEndpoint     string
+	DiagnosticSrvAddr         string
+	SampleSrvAddr             string
 	MysqlDsn                  string
 	OfficialAccountPrivateKey string
 	JwtSecret                 string
@@ -22,7 +23,8 @@ type Config struct {
 func NewConfig(
 	ipfsApiAddr string,
 	ethHttpUrl, ethWsUrl string, chainId int64,
-	diagnosticSrvEndpoint string,
+	diagnosticSrvAddr string,
+	sampleSrvAddr string,
 	mysqlDsn string,
 	officialAccountPrivateKey string,
 	jwtSecret string,
@@ -33,7 +35,8 @@ func NewConfig(
 		EthHttpUrl:                ethHttpUrl,
 		EthWsUrl:                  ethWsUrl,
 		ChainId:                   chainId,
-		DiagnosticSrvEndpoint:     diagnosticSrvEndpoint,
+		DiagnosticSrvAddr:         diagnosticSrvAddr,
+		SampleSrvAddr:             sampleSrvAddr,
 		MysqlDsn:                  mysqlDsn,
 		OfficialAccountPrivateKey: officialAccountPrivateKey,
 		JwtSecret:                 jwtSecret,
@@ -46,7 +49,8 @@ const (
 	ENVKEY_CHAIN_ID                     = "CHAIN_ID"
 	ENVKEY_ETH_HTTP_URL                 = "ETH_HTTP_URL"
 	ENVKEY_ETH_WS_URL                   = "ETH_WS_URL"
-	ENVKEY_DIAGNOSTIC_SRV_ENDPOINT      = "DIAGNOSTIC_SRV_ENDPOINT"
+	ENVKEY_DIAGNOSTIC_SRV_ADDR          = "DIAGNOSTIC_SRV_ADDR"
+	ENVKEY_SAMPLE_SRV_ADDR              = "SAMPLE_SRV_ADDR"
 	ENVKEY_MYSQL_DSN                    = "MYSQL_DSN"
 	ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY = "OFFICIAL_ACCOUNT_PRIVATE_KEY"
 	ENVKEY_JWT_SECRET                   = "JWT_SECRET"
@@ -62,7 +66,8 @@ func LoadConfigFromEnv() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	diagnosticSrvEndpoint := os.Getenv(ENVKEY_DIAGNOSTIC_SRV_ENDPOINT)
+	diagnosticSrvAddr := os.Getenv(ENVKEY_DIAGNOSTIC_SRV_ADDR)
+	sampleSrvAddr := os.Getenv(ENVKEY_SAMPLE_SRV_ADDR)
 	mysqlDsn := os.Getenv(ENVKEY_MYSQL_DSN)
 	officialAccountPk := os.Getenv(ENVKEY_OFFICIAL_ACCOUNT_PRIVATE_KEY)
 	jwtSecret := os.Getenv(ENVKEY_JWT_SECRET)
@@ -70,7 +75,8 @@ func LoadConfigFromEnv() (*Config, error) {
 	return NewConfig(
 		ipfsApiAddr,
 		ethHttpUrl, ethWsUrl, chainId,
-		diagnosticSrvEndpoint,
+		diagnosticSrvAddr,
+		sampleSrvAddr,
 		mysqlDsn,
 		officialAccountPk,
 		jwtSecret,
@@ -86,7 +92,8 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tEthereum RPC URL: %s\n", c.EthHttpUrl))
 	builder.WriteString(fmt.Sprintf("\tEthereum WS URL: %s\n", c.EthWsUrl))
 	builder.WriteString(fmt.Sprintf("\tChain ID: %d\n", c.ChainId))
-	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Endpoint: %s\n", c.DiagnosticSrvEndpoint))
+	builder.WriteString(fmt.Sprintf("\tDiagnostic Service Addr: %s\n", c.DiagnosticSrvAddr))
+	builder.WriteString(fmt.Sprintf("\tSample Service Addr: %s\n", c.SampleSrvAddr))
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
 	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
 	builder.WriteString(fmt.Sprintf("\tJWT Secret: [HIDDEN]\n"))

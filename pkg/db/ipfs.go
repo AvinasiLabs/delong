@@ -34,41 +34,6 @@ func NewIpfsStore(ipfsApiAddr string) (*IpfsStore, error) {
 	}, nil
 }
 
-// func NewIpfsStore(ipfsApiAddr string) (*IpfsStore, error) {
-// 	var addr ma.Multiaddr
-// 	var err error
-
-// 	if strings.HasPrefix(ipfsApiAddr, "http://") {
-// 		u, err := url.Parse(ipfsApiAddr)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to parse HTTP URL: %v", err)
-// 		}
-
-// 		if net.ParseIP(u.Hostname()) != nil {
-// 			addr, err = ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%s", u.Hostname(), u.Port()))
-// 		} else {
-// 			addr, err = ma.NewMultiaddr(fmt.Sprintf("/dns/%s/tcp/%s", u.Hostname(), u.Port()))
-// 		}
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to create multiaddr: %v", err)
-// 		}
-// 	} else {
-// 		addr, err = ma.NewMultiaddr(ipfsApiAddr)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to parse IPFS API address: %v", err)
-// 		}
-// 	}
-
-// 	ipfsApi, err := rpc.NewApi(addr)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to new ipfs api: %v", err)
-// 	}
-
-// 	return &IpfsStore{
-// 		ipfsApi: ipfsApi,
-// 	}, nil
-// }
-
 func (i *IpfsStore) Upload(ctx context.Context, fd []byte) (string, error) {
 	f := files.NewBytesFile(fd)
 	p, err := i.ipfsApi.Unixfs().Add(ctx, f)
@@ -142,25 +107,6 @@ func (i *IpfsStore) Download(ctx context.Context, cidStr string) ([]byte, error)
 	}
 	defer r.Close()
 	return io.ReadAll(r)
-
-	// data, err := io.ReadAll(r)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // 调试：把下载下来的原始二进制 dump 到 /tmp/ipfs-<cid>.tar.gz
-	// home, err := os.UserHomeDir()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// debugFile := filepath.Join(home, fmt.Sprintf("ipfs-%s.tar.gz", cidStr))
-	// if err := os.WriteFile(debugFile, data, 0644); err != nil {
-	// 	log.Printf("warning: failed to dump IPFS data: %v", err)
-	// } else {
-	// 	log.Printf("wrote raw IPFS archive to %s", debugFile)
-	// }
-
-	// return data, nil
 }
 
 // DownloadStream reads the file with the given CID from IPFS.

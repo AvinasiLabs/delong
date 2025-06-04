@@ -7,7 +7,6 @@ import (
 	"delong/internal/services/api"
 	"delong/internal/services/chainsync"
 	"delong/internal/services/runtime"
-	"delong/pkg/analysis"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
 	"delong/pkg/schedule"
@@ -45,8 +44,6 @@ func main() {
 		log.Fatalf("Failed to auto migrate database: %v", err)
 	}
 
-	reportAnalyzer := analysis.NewReportAnalyzer(config.DiagnosticSrvEndpoint)
-
 	keyVault := tee.NewKeyVaultFromConfig(config.AppEnv)
 
 	fundingPrivKey, err := crypto.HexToECDSA(config.OfficialAccountPrivateKey)
@@ -77,15 +74,16 @@ func main() {
 	}
 
 	apiService := api.NewService(api.ApiServiceOptions{
-		Addr:           ":8080",
-		IpfsStore:      ipfsStore,
-		MysqlDb:        mysqlDb,
-		CtrCaller:      ctrCaller,
-		KeyVault:       keyVault,
-		Notifier:       notifier,
-		ReportAnalyzer: reportAnalyzer,
-		JwtSecret:      config.JwtSecret,
-		AppEnv:         config.AppEnv,
+		Addr:              ":8080",
+		IpfsStore:         ipfsStore,
+		MysqlDb:           mysqlDb,
+		CtrCaller:         ctrCaller,
+		KeyVault:          keyVault,
+		Notifier:          notifier,
+		DiagnosticSrvAddr: config.DiagnosticSrvAddr,
+		SampleSrvAddr:     config.SampleSrvAddr,
+		JwtSecret:         config.JwtSecret,
+		AppEnv:            config.AppEnv,
 	})
 
 	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{

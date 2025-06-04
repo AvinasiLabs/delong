@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -453,5 +454,185 @@ func TestStcDatasetCreateDuplicateFile(t *testing.T) {
 		t.Logf("Correctly detected duplicate file: %v", apiResp2.Code)
 	} else {
 		t.Logf("Got error code %v, response: %s", apiResp2.Code, string(respBody2))
+	}
+}
+
+func TestStcDatasetSampleGeneration(t *testing.T) {
+	// Create a CSV with mixed data types to test sample generation
+	csvContent := `name,age,active,salary,department
+	John,25,true,50002.5,Engineering
+	Jane,30,false,75000.0,Marketing
+	Bob,28,true,60000.25,Engineering
+	Alice,35,true,80000.75,Sales
+	Mike,22,false,45000.0,Support
+	Sarah,29,true,65000.5,Engineering
+	Tom,31,false,70000.25,Marketing
+	Lisa,27,true,55000.0,Sales`
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	datasetName := generateRandomDatasetName("test-sample")
+	_ = writer.WriteField("name", datasetName)
+	_ = writer.WriteField("desc", "Test dataset for sample data generation")
+	_ = writer.WriteField("author", "Sample Test Author")
+	_ = writer.WriteField("author_wallet", TEST_AUTHOR_WALLET)
+
+	part, err := writer.CreateFormFile("file", "sample_test.csv")
+	if err != nil {
+		t.Fatalf("failed to create form file: %v", err)
+	}
+	_, err = part.Write([]byte(csvContent))
+	if err != nil {
+		t.Fatalf("failed to write file content: %v", err)
+	}
+	writer.Close()
+
+	req, err := http.NewRequest("POST", TEST_BASE_URL+"/static-datasets", body)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	apiResp := &responser.Response{}
+	json.Unmarshal(respBody, apiResp)
+	if apiResp.Code != bizcode.SUCCESS {
+		t.Errorf("Failed to create static dataset, code=%v", apiResp.Code)
+	}
+
+	// Get transaction hash from response
+	txHash, ok := apiResp.Data.(string)
+	if !ok {
+		t.Fatalf("Unexpected data format: %T", apiResp.Data)
+	}
+
+	t.Logf("Got transaction hash: %s", txHash)
+
+	// Wait for WebSocket confirmation
+	msg := waitForWsConfirmation(t, txHash, 15*time.Second)
+	t.Logf("Received WebSocket message: %s", string(msg))
+
+	wsResp := responser.ResponseRaw{}
+	err = json.Unmarshal(msg, &wsResp)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal WebSocket response: %v", err)
+	}
+	if wsResp.Code != bizcode.SUCCESS {
+		t.Fatalf("Expected WebSocket SUCCESS, got %v", wsResp.Code)
+	}
+
+	var tx models.BlockchainTransaction
+	err = json.Unmarshal(wsResp.Data, &tx)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal transaction: %v", err)
+	}
+
+	datasetId := tx.EntityID
+	t.Logf("Created dataset with ID: %d", datasetId)
+
+	// Verify the created dataset has a sample URL
+	getResp, err := http.Get(TEST_BASE_URL + "/static-datasets/" + strconv.Itoa(int(datasetId)))
+	if err != nil {
+		t.Fatalf("Failed to GET created dataset: %v", err)
+	}
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET created dataset failed, status: %d", getResp.StatusCode)
+	}
+
+	getBody, err := io.ReadAll(getResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read GET body: %v", err)
+	}
+
+	getRespJson := responser.Response{}
+	err = json.Unmarshal(getBody, &getRespJson)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal GET response: %v", err)
+	}
+
+	if getRespJson.Code != bizcode.SUCCESS {
+		t.Fatalf("GET expected SUCCESS, got %v", getRespJson.Code)
+	}
+
+	// Verify dataset properties
+	datasetBytes, err := json.Marshal(getRespJson.Data)
+	if err != nil {
+		t.Fatalf("Failed to marshal dataset data: %v", err)
+	}
+
+	var dataset models.StaticDataset
+	err = json.Unmarshal(datasetBytes, &dataset)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset: %v", err)
+	}
+
+	// Verify sample URL is generated in the correct format
+	if dataset.SampleUrl == "" {
+		t.Errorf("Expected sample URL to be generated, but got empty string")
+	} else {
+		t.Logf("Sample URL generated: %s", dataset.SampleUrl)
+
+		// Verify the URL format is /api/sample/{cid}
+		if !strings.HasPrefix(dataset.SampleUrl, "/api/sample/") {
+			t.Errorf("Expected sample URL to start with '/api/sample/', got: %s", dataset.SampleUrl)
+		}
+
+		// Test accessing the sample data through the API endpoint
+		fullUrl := "http://localhost:8080" + dataset.SampleUrl
+		sampleResp, err := http.Get(fullUrl)
+		if err != nil {
+			t.Logf("Warning: Could not fetch sample data from API: %v", err)
+		} else {
+			defer sampleResp.Body.Close()
+			if sampleResp.StatusCode == http.StatusOK {
+				sampleData, _ := io.ReadAll(sampleResp.Body)
+				t.Logf("Sample data preview (first 200 chars): %s", string(sampleData[:min(200, len(sampleData))]))
+
+				// Verify it's valid CSV with headers
+				if !strings.Contains(string(sampleData), "name,age,active,salary,department") {
+					t.Errorf("Sample data does not contain expected CSV headers")
+				}
+
+				// Verify mixed data types are preserved
+				lines := strings.Split(string(sampleData), "\n")
+				if len(lines) >= 2 {
+					// Check that we have the expected number of columns
+					headerCols := strings.Split(lines[0], ",")
+					if len(headerCols) != 5 {
+						t.Errorf("Expected 5 columns in sample data, got %d", len(headerCols))
+					}
+
+					// Check at least one data row exists
+					if len(lines) > 1 && lines[1] != "" {
+						dataCols := strings.Split(lines[1], ",")
+						if len(dataCols) != 5 {
+							t.Errorf("Expected 5 data columns in sample data, got %d", len(dataCols))
+						}
+						t.Logf("Sample data row: %s", lines[1])
+					}
+				}
+
+				// Verify content type is CSV
+				contentType := sampleResp.Header.Get("Content-Type")
+				if contentType != "text/csv" {
+					t.Errorf("Expected Content-Type 'text/csv', got: %s", contentType)
+				}
+			} else {
+				t.Logf("Warning: Sample API endpoint returned status %d", sampleResp.StatusCode)
+			}
+		}
 	}
 }

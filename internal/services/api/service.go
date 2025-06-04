@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"delong/pkg/analysis"
 	"delong/pkg/contracts"
 	"delong/pkg/db"
 	"delong/pkg/tee"
@@ -29,15 +28,16 @@ type ApiService struct {
 }
 
 type ApiServiceOptions struct {
-	Addr           string
-	IpfsStore      *db.IpfsStore
-	MysqlDb        *gorm.DB
-	CtrCaller      *contracts.ContractCaller
-	KeyVault       *tee.KeyVault
-	Notifier       *ws.Notifier
-	ReportAnalyzer *analysis.ReportAnalyzer
-	JwtSecret      string
-	AppEnv         string
+	Addr              string
+	IpfsStore         *db.IpfsStore
+	MysqlDb           *gorm.DB
+	CtrCaller         *contracts.ContractCaller
+	KeyVault          *tee.KeyVault
+	Notifier          *ws.Notifier
+	DiagnosticSrvAddr string
+	JwtSecret         string
+	AppEnv            string
+	SampleSrvAddr     string
 }
 
 func NewService(opts ApiServiceOptions) *ApiService {
@@ -100,6 +100,7 @@ func (s *ApiService) Init(ctx context.Context) error {
 
 	stcDataset := &StaticDatasetResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/static-datasets", stcDataset)
+	apiGroup.GET("/sample/:cid", stcDataset.SampleHandler)
 
 	return nil
 }

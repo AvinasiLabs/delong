@@ -10,8 +10,10 @@ import (
 	"delong/pkg/tee"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,6 +22,49 @@ import (
 
 type TestReportResource struct {
 	ApiServiceOptions
+}
+
+// analyzeReportFile uploads file content to the analyzer endpoint and returns raw JSON bytes
+func (r *TestReportResource) analyzeReportFile(c *gin.Context, fileName string, fileReader io.Reader, addr string) ([]byte, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return nil, fmt.Errorf("creating form file: %w", err)
+	}
+
+	_, err = io.Copy(part, fileReader)
+	if err != nil {
+		return nil, fmt.Errorf("copying file content: %w", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return nil, fmt.Errorf("closing multipart writer: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/analyzer/diagno_analyzer/analyze", addr)
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, url, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("status %d: %s", resp.StatusCode, string(b))
+	}
+
+	return io.ReadAll(resp.Body)
 }
 
 func (r *TestReportResource) CreateHandler(c *gin.Context) {
@@ -68,7 +113,7 @@ func (r *TestReportResource) CreateHandler(c *gin.Context) {
 	}
 
 	// Parse raw report file to structured data using direct file upload
-	result, err := r.ReportAnalyzer.AnalyzeFileWithReader(c, reportFile.Filename, bytes.NewReader(reportFile.Data))
+	result, err := r.analyzeReportFile(c, reportFile.Filename, bytes.NewReader(reportFile.Data), r.DiagnosticSrvAddr)
 	if err != nil {
 		log.Printf("Failed to analyze raw report test: %v", err)
 		responser.ResponseError(c, bizcode.REPORT_ANALYZE_FAIL)
