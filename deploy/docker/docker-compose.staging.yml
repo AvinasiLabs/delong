@@ -52,7 +52,7 @@ services:
       retries: 10
 
   delong:
-    image: lilhammer/delong:amd64-7309037
+    image: lilhammer/delong:latest
     environment:
       APP_ENV: ${APP_ENV}
       IPFS_ADDR: ${IPFS_ADDR}

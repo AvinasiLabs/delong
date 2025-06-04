@@ -8,7 +8,7 @@ import (
 
 type StaticDataset struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name         string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_name" json:"name"`
+	Name         string    `gorm:"type:varchar(255);not null;index:idx_name" json:"name"`
 	Desc         string    `gorm:"type:text" json:"desc"`
 	FileHash     string    `gorm:"type:varchar(64);not null;uniqueIndex:idx_file_hash" json:"file_hash"` // SHA-256 hash of original file for deduplication
 	IpfsCid      string    `gorm:"type:varchar(255);not null" json:"ipfs_cid"`
@@ -40,6 +40,7 @@ func CreateStcDataset(db *gorm.DB, req CreateStcDatasetReq) (*StaticDataset, err
 	asset := StaticDataset{
 		Name:         req.Name,
 		Desc:         req.Desc,
+		FileHash:     req.FileHash,
 		IpfsCid:      req.IpfsCid,
 		FileSize:     req.FileSize,
 		FileFormat:   req.FileFormat,

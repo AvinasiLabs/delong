@@ -6,7 +6,9 @@ import (
 	"delong/pkg/bizcode"
 	"delong/pkg/responser"
 	"encoding/json"
+	"fmt"
 	"io"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -17,20 +19,64 @@ import (
 
 const TEST_AUTHOR_WALLET = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
 
+// generateRandomCSV creates a simple CSV with random data to avoid file hash collisions
+func generateRandomCSV() string {
+	// Go 1.20+ no longer requires rand.Seed(), global generator is auto-seeded
+	now := time.Now()
+	timestamp := now.UnixNano()
+
+	randNum1 := rand.Intn(10000)
+	randNum2 := rand.Intn(10000)
+	randNum3 := rand.Intn(10000)
+
+	return fmt.Sprintf(`id,name,value
+	1,item_%d,%d
+	2,data_%d,%d
+	3,test_%d,%d`,
+		timestamp%100000+int64(randNum1), randNum1,
+		timestamp%100000+int64(randNum2), randNum2,
+		timestamp%100000+int64(randNum3), randNum3)
+}
+
+// generateRandomDatasetName creates unique dataset names
+func generateRandomDatasetName(prefix string) string {
+	timestamp := time.Now().UnixNano()
+	randNum := rand.Intn(1000)
+	return fmt.Sprintf("%s-%d-%d", prefix, timestamp%10000, randNum)
+}
+
+// generateFixedCSV creates the same CSV content every time for duplicate testing
+// func generateFixedCSV() string {
+// 	return `id,name,value
+// 1,duplicate_test,100
+// 2,same_content,200
+// 3,fixed_data,300`
+// }
+
+// generateFixedCSVForDuplicateTest creates fixed content unique per test invocation
+func generateFixedCSVForDuplicateTest() string {
+	// Use current time to ensure different test runs don't conflict
+	now := time.Now()
+	baseId := now.UnixNano() % 1000000
+
+	return fmt.Sprintf(`id,name,value
+	1,duplicate_test_%d,100
+	2,same_content_%d,200
+	3,fixed_data_%d,300`, baseId, baseId, baseId)
+}
+
 func TestStcDatasetCreate(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	_ = writer.WriteField("name", "test-blood-dataset")
+	datasetName := generateRandomDatasetName("test-blood")
+	_ = writer.WriteField("name", datasetName)
 	_ = writer.WriteField("desc", "Test blood analysis dataset for integration testing")
 	_ = writer.WriteField("author", "Test Author")
 	_ = writer.WriteField("author_wallet", TEST_AUTHOR_WALLET)
 
-	// Create a test CSV file content
-	csvContent := `id,test_report_id,category,name,definition,result,reference_range,explanation,status,suggestions
-1,101,blood,glucose,blood glucose level,95,70-100 mg/dL,normal glucose level,normal,maintain healthy diet
-2,101,blood,cholesterol,total cholesterol,180,<200 mg/dL,acceptable cholesterol level,normal,continue current lifestyle
-3,102,blood,hemoglobin,hemoglobin level,14.5,12-16 g/dL,normal hemoglobin,normal,no action needed`
+	// Create a test CSV file content with random data
+	csvContent := generateRandomCSV()
 
 	part, err := writer.CreateFormFile("file", "test_dataset.csv")
 	if err != nil {
@@ -133,8 +179,8 @@ func TestStcDatasetCreate(t *testing.T) {
 		t.Fatalf("Failed to unmarshal dataset: %v", err)
 	}
 
-	if dataset.Name != "test-blood-dataset" {
-		t.Errorf("Expected name 'test-blood-dataset', got '%s'", dataset.Name)
+	if dataset.Name != datasetName {
+		t.Errorf("Expected name '%s', got '%s'", datasetName, dataset.Name)
 	}
 	if dataset.Author != "Test Author" {
 		t.Errorf("Expected author 'Test Author', got '%s'", dataset.Author)
@@ -187,7 +233,7 @@ func TestStcDatasetList(t *testing.T) {
 		t.Fatalf("Expected data to be a map, got %T", apiResp.Data)
 	}
 
-	if _, exists := dataMap["items"]; !exists {
+	if _, exists := dataMap["list"]; !exists {
 		t.Errorf("Expected 'list' field in response data")
 	}
 	if _, exists := dataMap["total"]; !exists {
@@ -200,14 +246,13 @@ func TestStcDatasetTake(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	_ = writer.WriteField("name", "test-take-dataset")
+	datasetName := generateRandomDatasetName("test-take")
+	_ = writer.WriteField("name", datasetName)
 	_ = writer.WriteField("desc", "Test dataset for take operation")
 	_ = writer.WriteField("author", "Take Test Author")
 	_ = writer.WriteField("author_wallet", TEST_AUTHOR_WALLET)
 
-	csvContent := `test,value
-sample1,123
-sample2,456`
+	csvContent := generateRandomCSV()
 
 	part, err := writer.CreateFormFile("file", "take_test.csv")
 	if err != nil {
@@ -319,8 +364,8 @@ sample2,456`
 	if retrievedDataset.ID != uint64(datasetId) {
 		t.Errorf("Expected ID %d, got %d", datasetId, retrievedDataset.ID)
 	}
-	if retrievedDataset.Name != "test-take-dataset" {
-		t.Errorf("Expected name 'test-take-dataset', got '%s'", retrievedDataset.Name)
+	if retrievedDataset.Name != datasetName {
+		t.Errorf("Expected name '%s', got '%s'", datasetName, retrievedDataset.Name)
 	}
 	if retrievedDataset.Author != "Take Test Author" {
 		t.Errorf("Expected author 'Take Test Author', got '%s'", retrievedDataset.Author)
@@ -331,14 +376,15 @@ sample2,456`
 }
 
 func TestStcDatasetCreateDuplicateFile(t *testing.T) {
-	csvContent := `duplicate,test
-	value1,123
-	value2,456`
+	// Generate fixed content for this test run to avoid conflicts with other test runs
+	csvContent := generateFixedCSVForDuplicateTest()
+	t.Logf("Using fixed CSV content for duplicate test")
 
 	// Create first dataset
 	body1 := &bytes.Buffer{}
 	writer1 := multipart.NewWriter(body1)
-	_ = writer1.WriteField("name", "first-duplicate-dataset")
+	firstName := generateRandomDatasetName("first-dup")
+	_ = writer1.WriteField("name", firstName)
 	_ = writer1.WriteField("desc", "First dataset with specific content")
 	_ = writer1.WriteField("author", "Duplicate Test Author")
 	_ = writer1.WriteField("author_wallet", TEST_AUTHOR_WALLET)
@@ -373,16 +419,17 @@ func TestStcDatasetCreateDuplicateFile(t *testing.T) {
 	txHash1, _ := apiResp1.Data.(string)
 	_ = waitForWsConfirmation(t, txHash1, 15*time.Second)
 
-	// Try to create second dataset with same file content
+	// Try to create second dataset with same file content but different name
 	body2 := &bytes.Buffer{}
 	writer2 := multipart.NewWriter(body2)
-	_ = writer2.WriteField("name", "second-duplicate-dataset")
+	secondName := generateRandomDatasetName("second-dup")
+	_ = writer2.WriteField("name", secondName)
 	_ = writer2.WriteField("desc", "Second dataset with same content")
 	_ = writer2.WriteField("author", "Duplicate Test Author 2")
 	_ = writer2.WriteField("author_wallet", TEST_AUTHOR_WALLET)
 
 	part2, _ := writer2.CreateFormFile("file", "duplicate2.csv")
-	part2.Write([]byte(csvContent))
+	part2.Write([]byte(csvContent)) // Use exactly the same content
 	writer2.Close()
 
 	req2, _ := http.NewRequest("POST", TEST_BASE_URL+"/static-datasets", body2)
