@@ -50,7 +50,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: lilhammer/delong:latest
+    image: lilhammer/delong:test
     environment:
       - APP_ENV=local
       - IPFS_ADDR=/dns/ipfs/tcp/5001

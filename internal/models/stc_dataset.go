@@ -6,6 +6,13 @@ import (
 	"gorm.io/gorm"
 )
 
+const StcDatasetJoinConfirmedTx = `
+JOIN blockchain_transactions bt
+ON bt.entity_id = static_datasets.id
+   AND bt.status = ?
+   AND bt.entity_type = ?
+`
+
 type StaticDataset struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name         string    `gorm:"type:varchar(255);not null;index:idx_name" json:"name"`
@@ -59,37 +66,42 @@ func CreateStcDataset(db *gorm.DB, req CreateStcDatasetReq) (*StaticDataset, err
 }
 
 func GetStcDataset(db *gorm.DB, page, pageSize int) ([]StaticDataset, int64, error) {
-	var assets []StaticDataset
+	var datasets []StaticDataset
 	var total int64
 
-	tx := db.Model(&assets)
+	tx := db.Model(&StaticDataset{}).
+		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET)
 	if err := tx.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-
 	err := tx.Limit(pageSize).
 		Offset((page - 1) * pageSize).
 		Order("created_at DESC").
-		Find(&assets).Error
-	return assets, total, err
+		Find(&datasets).Error
+	return datasets, total, err
 }
 
 func GetStcDatasetByID(db *gorm.DB, id uint) (*StaticDataset, error) {
-	var asset StaticDataset
-	err := db.First(&asset, id).Error
+	var dataset StaticDataset
+	err := db.Model(&StaticDataset{}).
+		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
+		First(&dataset, id).Error
 	if err != nil {
 		return nil, err
 	}
-	return &asset, err
+	return &dataset, err
 }
 
 func GetStcDatasetByHash(db *gorm.DB, hash string) (*StaticDataset, error) {
-	var asset StaticDataset
-	err := db.Where("file_hash = ?", hash).First(&asset).Error
+	var dataset StaticDataset
+	err := db.Model(&StaticDataset{}).
+		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
+		Where("file_hash = ?", hash).
+		First(&dataset).Error
 	if err != nil {
 		return nil, err
 	}
-	return &asset, err
+	return &dataset, err
 }
 
 type UpdateStcDatasetReq struct {
@@ -97,21 +109,23 @@ type UpdateStcDatasetReq struct {
 	Author      string `json:"author"`
 }
 
-func UpdateStcDataset(db *gorm.DB, id uint, req UpdateStcDatasetReq) (*StaticDataset, error) {
-	updates := map[string]any{
-		"description": req.Description,
-		"author":      req.Author,
-	}
-	err := db.Model(&StaticDataset{}).Where("id = ?", id).Updates(updates).Error
-	if err != nil {
-		return nil, err
-	}
+// func UpdateStcDataset(db *gorm.DB, id uint, req UpdateStcDatasetReq) (*StaticDataset, error) {
+// 	updates := map[string]any{
+// 		"description": req.Description,
+// 		"author":      req.Author,
+// 	}
+// 	err := db.Model(&StaticDataset{}).
+// 		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
+// 		Where("id = ?", id).Updates(updates).Error
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	asset := StaticDataset{}
-	err = db.First(&asset, id).Error
-	return &asset, err
-}
+// 	asset := StaticDataset{}
+// 	err = db.First(&asset, id).Error
+// 	return &asset, err
+// }
 
-func DeleteStcDataset(db *gorm.DB, id uint) error {
-	return db.Delete(&StaticDataset{}, id).Error
-}
+// func DeleteStcDataset(db *gorm.DB, id uint) error {
+// 	return db.Delete(&StaticDataset{}, id).Error
+// }
