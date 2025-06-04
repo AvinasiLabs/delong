@@ -98,6 +98,9 @@ func (s *ApiService) Init(ctx context.Context) error {
 	metas := &ContractMetaResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/contracts", metas)
 
+	stcDataset := &StaticDatasetResource{s.ApiServiceOptions}
+	rest.CRUD(apiGroup, "/static-datasets", stcDataset)
+
 	return nil
 }
 

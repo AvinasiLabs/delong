@@ -22,6 +22,7 @@ func AutoMigrateDatabase(db *gorm.DB) error {
 		&TestReport{},
 		&TestResult{},
 		&Vote{},
+		&StaticDataset{},
 	)
 
 	if err != nil {

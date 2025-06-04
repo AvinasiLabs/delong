@@ -1,7 +1,10 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -60,4 +63,28 @@ func isAdmin(c *gin.Context) (bool, error) {
 	}
 
 	return role == "admin", nil
+}
+
+// hashSha256 reads all data from rs, computes its SHA-256 hash,
+// resets rs back to the start, and returns the hex-encoded digest.
+// rs must implement io.ReadSeeker so that it can be rewound.
+func hashSha256(rs io.ReadSeeker) (string, error) {
+	// Create a new SHA-256 hasher
+	hasher := sha256.New()
+
+	// Read entire content into the hasher
+	if _, err := io.Copy(hasher, rs); err != nil {
+		return "", err
+	}
+
+	// Convert the hash sum to a hex string
+	hashBytes := hasher.Sum(nil)
+	hashStr := hex.EncodeToString(hashBytes)
+
+	// Rewind the reader so it can be read again later
+	if _, err := rs.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+
+	return hashStr, nil
 }

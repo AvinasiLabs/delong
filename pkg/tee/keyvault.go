@@ -84,7 +84,7 @@ func NewKeyVaultFromConfig(appenv string) *KeyVault {
 // 	return raw, nil
 // }
 
-func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, length int) ([]byte, error) {
+func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext) ([]byte, error) {
 	cacheKey := kc.CacheKey()
 	if val, ok := t.symmKeyCache.Load(cacheKey); ok {
 		return val.([]byte), nil
@@ -96,7 +96,7 @@ func (t *KeyVault) DeriveSymmetricKey(ctx context.Context, kc *KeyContext, lengt
 		return nil, err
 	}
 	reader := hkdf.New(sha256.New, raw, kc.Salt(), kc.Info())
-	key := make([]byte, length)
+	key := make([]byte, 32)
 	if _, err := io.ReadFull(reader, key); err != nil {
 		return nil, err
 	}

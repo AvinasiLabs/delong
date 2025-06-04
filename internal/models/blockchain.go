@@ -15,11 +15,12 @@ const (
 
 const (
 	// ENTITY_TYPE_ALGO        string = "ALGO"
-	ENTITY_TYPE_EXECUTION   string = "EXECUTION"
-	ENTITY_TYPE_VOTE        string = "VOTE"
-	ENTITY_TYPE_COMMITTEE   string = "COMMITTEE"
-	ENTITY_TYPE_TEST_REPORT string = "TEST_REPORT"
-	ENTITY_TYPE_DATAUSAGE   string = "DATAUSAGE"
+	ENTITY_TYPE_EXECUTION      string = "EXECUTION"
+	ENTITY_TYPE_VOTE           string = "VOTE"
+	ENTITY_TYPE_COMMITTEE      string = "COMMITTEE"
+	ENTITY_TYPE_TEST_REPORT    string = "TEST_REPORT"
+	ENTITY_TYPE_STATIC_DATASET string = "STATIC_DATASET"
+	ENTITY_TYPE_DATAUSAGE      string = "DATAUSAGE"
 )
 
 // BlockchainTransaction records blockchain transactions and their status

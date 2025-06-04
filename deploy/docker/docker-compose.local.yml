@@ -50,15 +50,14 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: lilhammer/delong:arm64-v8-463a237
+    image: lilhammer/delong:arm64-v8-latest
     environment:
       - APP_ENV=local
-      - IPFS_ADDR=/ip4/127.0.0.1/tcp/5001
+      - IPFS_ADDR=/dns/ipfs/tcp/5001
       - ETH_HTTP_URL=http://anvil:8545
       - ETH_WS_URL=ws://anvil:8545
       - CHAIN_ID=31337
       - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
-      # - DSTACK_VERSION=dstack
       - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
       - OFFICIAL_ACCOUNT_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
       - JWT_SECRET=phala_cloud_test_jwt_secret_2025_demo

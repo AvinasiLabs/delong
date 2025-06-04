@@ -39,3 +39,15 @@ type DatasetUpdateReq struct {
 	UiName      string `json:"ui_name" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
+
+type StcDatasetCreateReq struct {
+	Name         string `form:"name" binding:"required"`
+	Desc         string `form:"desc"`
+	Author       string `form:"author"`
+	AuthorWallet string `form:"author_wallet"`
+}
+
+type StcDatasetUpdateReq struct {
+	Desc   string `json:"desc"`
+	Author string `json:"author"`
+}

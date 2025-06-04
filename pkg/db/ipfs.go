@@ -34,6 +34,41 @@ func NewIpfsStore(ipfsApiAddr string) (*IpfsStore, error) {
 	}, nil
 }
 
+// func NewIpfsStore(ipfsApiAddr string) (*IpfsStore, error) {
+// 	var addr ma.Multiaddr
+// 	var err error
+
+// 	if strings.HasPrefix(ipfsApiAddr, "http://") {
+// 		u, err := url.Parse(ipfsApiAddr)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to parse HTTP URL: %v", err)
+// 		}
+
+// 		if net.ParseIP(u.Hostname()) != nil {
+// 			addr, err = ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%s", u.Hostname(), u.Port()))
+// 		} else {
+// 			addr, err = ma.NewMultiaddr(fmt.Sprintf("/dns/%s/tcp/%s", u.Hostname(), u.Port()))
+// 		}
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to create multiaddr: %v", err)
+// 		}
+// 	} else {
+// 		addr, err = ma.NewMultiaddr(ipfsApiAddr)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to parse IPFS API address: %v", err)
+// 		}
+// 	}
+
+// 	ipfsApi, err := rpc.NewApi(addr)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to new ipfs api: %v", err)
+// 	}
+
+// 	return &IpfsStore{
+// 		ipfsApi: ipfsApi,
+// 	}, nil
+// }
+
 func (i *IpfsStore) Upload(ctx context.Context, fd []byte) (string, error) {
 	f := files.NewBytesFile(fd)
 	p, err := i.ipfsApi.Unixfs().Add(ctx, f)
@@ -69,12 +104,12 @@ func (i *IpfsStore) UploadEncrypted(ctx context.Context, rawFile []byte, key []b
 
 // UploadEncryptedStream reads plaintext from r, encrypts it in fixed-size chunks,
 // and uploads the resulting ciphertext stream to IPFS. It returns the root CID.
-func (i *IpfsStore) UploadEncryptedStream(ctx context.Context, r io.Reader, key []byte, chunkSize int) (string, error) {
+func (i *IpfsStore) UploadEncryptedStream(ctx context.Context, r io.Reader, key []byte) (string, error) {
 	// Create a pipe, write encrypted data into pw,
 	// and read it from pr to feed into IPFS.
 	pr, pw := io.Pipe()
 
-	ew, err := aesgcm.NewWriter(pw, key, chunkSize)
+	ew, err := aesgcm.NewWriter(pw, key)
 	if err != nil {
 		pw.Close()
 		return "", fmt.Errorf("failed to create encrypt writer: %w", err)

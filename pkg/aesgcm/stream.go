@@ -9,6 +9,8 @@ import (
 	"io"
 )
 
+const defaultChunkSize = 128 * 1024
+
 // Writer encrypts data in fixed-size chunks with AES-GCM
 // and writes framed ciphertext to the underlying io.Writer.
 type Writer struct {
@@ -20,7 +22,7 @@ type Writer struct {
 
 // NewWriter returns a Writer that encrypts to dst.
 // chunkSize is the max plaintext bytes per frame.
-func NewWriter(dst io.Writer, key []byte, chunkSize int) (*Writer, error) {
+func NewWriter(dst io.Writer, key []byte) (*Writer, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
@@ -29,7 +31,7 @@ func NewWriter(dst io.Writer, key []byte, chunkSize int) (*Writer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES-GCM AEAD: %w", err)
 	}
-	return &Writer{dst: dst, aead: aead, chunkSize: chunkSize}, nil
+	return &Writer{dst: dst, aead: aead, chunkSize: defaultChunkSize}, nil
 }
 
 // Write encrypts p in chunks and writes each frame as
@@ -38,9 +40,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 	total, off := len(p), 0
 	for off < total {
 		n := total - off
-		if n > w.chunkSize {
-			n = w.chunkSize
-		}
+		n = min(n, w.chunkSize)
 		nonce := make([]byte, w.aead.NonceSize())
 		if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 			return 0, err

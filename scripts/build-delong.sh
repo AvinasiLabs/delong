@@ -42,7 +42,7 @@ if [[ "$SHOW_HELP" == "true" ]]; then
     echo ""
     echo "Options:"
     echo "  -a ARCH         Target architecture (default: amd64)"
-    echo "                  Examples: amd64, arm64, arm/v7, arm/v8, windows/amd64"
+    echo "                  Examples: amd64, arm64, arm64/v7, arm64/v8, windows/amd64"
     echo "  -l              Also tag as 'latest' (default: false)"
     echo "  -h              Show this help message"
     echo ""
@@ -125,7 +125,7 @@ echo ""
 
 # Switch to default builder and bootstrap
 echo "Switching to default builder and bootstrapping..."
-docker buildx use default
+docker context use default
 docker buildx inspect default --bootstrap
 
 echo "Current builder info:"

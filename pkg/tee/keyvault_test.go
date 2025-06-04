@@ -12,7 +12,7 @@ func TestDeriveSymmetricKey(t *testing.T) {
 
 	kc := NewKeyContext(KEYKIND_ENC_KEY, "testuser", "encrypt_data")
 
-	key, err := keyVault.DeriveSymmetricKey(ctx, kc, 32)
+	key, err := keyVault.DeriveSymmetricKey(ctx, kc)
 	if err != nil {
 		t.Fatalf("DeriveSymmetricKey failed: %v", err)
 	}

@@ -52,13 +52,15 @@ func (r *TestReportResource) CreateHandler(c *gin.Context) {
 	}
 
 	// Upload encrypted raw report file
-	aesKey, err := r.KeyVault.DeriveSymmetricKey(c, tee.KeyCtxUploadReportEncrypt, 32)
+	ctx := c.Request.Context()
+	kc := tee.NewKeyContext(tee.KEYKIND_ENC_KEY, req.UserWallet, "encrypt dynamic dataset")
+	aesKey, err := r.KeyVault.DeriveSymmetricKey(ctx, kc)
 	if err != nil {
 		log.Printf("Failed to derive symmetric key: %v", err)
 		responser.ResponseError(c, bizcode.KEY_DERIVE_FAIL)
 		return
 	}
-	cid, err := r.IpfsStore.UploadEncrypted(c, reportFile.Data, aesKey)
+	cid, err := r.IpfsStore.UploadEncrypted(ctx, reportFile.Data, aesKey)
 	if err != nil {
 		log.Printf("Failed to upload data: %v", err)
 		responser.ResponseError(c, bizcode.IPFS_UPLOAD_FAIL)
@@ -110,7 +112,7 @@ func (r *TestReportResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
-	tx, err := r.CtrCaller.RegisterData(c, userWallet, cid, req.Dataset)
+	tx, err := r.CtrCaller.RegisterData(ctx, userWallet, cid, req.Dataset)
 	if err != nil {
 		dbtx.Rollback()
 		log.Printf("Failed to register data on-chain: %v", err)
