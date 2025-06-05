@@ -54,7 +54,7 @@ func main() {
 	ctrCaller, err := contracts.NewContractCaller(
 		config.EthHttpUrl, config.EthWsUrl, config.ChainId,
 		keyVault,
-		fundingPrivKey, 0.005, 0.1,
+		fundingPrivKey, 0.005, 0.04,
 	)
 	if err != nil {
 		log.Fatalf("Failed to create contract caller: %v", err)

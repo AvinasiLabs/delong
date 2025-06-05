@@ -15,10 +15,8 @@ services:
 
   ipfs:
     image: ipfs/kubo:latest
-    environment:
-      - IPFS_PATH=/data/ipfs
     volumes:
-      - ./data/ipfs:/data/ipfs
+      - ./data/ipfs:/root/.ipfs
     expose:
       - "5001"
       - "8080"
@@ -26,18 +24,6 @@ services:
       test: ["CMD", "ipfs", "id"]
       timeout: 10s
       retries: 5
-
-  anvil:
-    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
-    command: anvil --host 0.0.0.0 --port 8545 --block-time 2 --state /data/anvil/delong_state.json
-    volumes:
-      - ./data/anvil:/data/anvil
-    expose:
-      - "8545"
-    healthcheck:
-      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://localhost:8545"]
-      timeout: 30s
-      retries: 10
 
   dstack-simulator:
     image: lilhammer/dstack-simulator:latest
@@ -48,16 +34,18 @@ services:
 
   delong:
     image: lilhammer/delong:test
+    env_file:
+      - .env
     environment:
       - APP_ENV=local
       - IPFS_ADDR=/dns/ipfs/tcp/5001
-      - ETH_HTTP_URL=http://anvil:8545
-      - ETH_WS_URL=ws://anvil:8545
-      - CHAIN_ID=31337
+      - ETH_HTTP_URL=${ETH_HTTP_URL}
+      - ETH_WS_URL=${ETH_WS_URL}
+      - CHAIN_ID=11155111
       - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
       - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
-      - OFFICIAL_ACCOUNT_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-      - JWT_SECRET=phala_cloud_test_jwt_secret_2025_demo
+      - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
+      - JWT_SECRET=${JWT_SECRET}
       - SAMPLE_SRV_ADDR=http://host.docker.internal:8009
       - DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008
     volumes:
@@ -71,7 +59,5 @@ services:
       mysql:
         condition: service_healthy
       ipfs:
-        condition: service_healthy
-      anvil:
         condition: service_healthy
     restart: no

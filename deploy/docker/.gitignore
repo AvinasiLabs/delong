@@ -1,0 +1,33 @@
+# Environment files with secrets
+.env
+.env.local
+.env.production
+
+# Runtime data directories
+data/
+data/*
+!data/.gitkeep
+
+# Docker-related files
+docker-compose.override.yml
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup

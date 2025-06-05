@@ -120,10 +120,12 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 	fromAddr := crypto.PubkeyToAddress(c.fundingPrivKey.PublicKey)
 	nonce, err := c.httpClient.PendingNonceAt(ctx, fromAddr)
 	if err != nil {
+		log.Printf("Failed to get pending nonce for address %v: %v", fromAddr, err)
 		return err
 	}
 	gasPrice, err := c.httpClient.SuggestGasPrice(ctx)
 	if err != nil {
+		log.Printf("Failed to suggest gas price: %v", err)
 		return err
 	}
 
@@ -139,11 +141,13 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 	signer := types.LatestSignerForChainID(c.chainId)
 	signedTx, err := types.SignTx(tx, signer, c.fundingPrivKey)
 	if err != nil {
+		log.Printf("Failed to sign transaction: %v", err)
 		return err
 	}
 
 	err = c.httpClient.SendTransaction(ctx, signedTx)
 	if err != nil {
+		log.Printf("Failed to send transaction: %v", err)
 		return err
 	}
 
@@ -163,31 +167,37 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.DB) error {
 	ethAcc, err := c.keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
+		log.Printf("Failed to derive Ethereum account: %v", err)
 		return err
 	}
 
 	err = c.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
+		log.Printf("Failed to ensure wallet funded: %v", err)
 		return err
 	}
 
 	auth, err := bind.NewKeyedTransactorWithChainID(ethAcc.PrivateKey, c.chainId)
 	if err != nil {
+		log.Printf("Failed to create transactor: %v", err)
 		return err
 	}
 
 	// DataContribution contract
 	addrStr, err := models.GetContractAddress(db, CTRKEY_DATA_CONTRIBUTION)
 	if err != nil {
+		log.Printf("Failed to get contract address: %v", err)
 		return err
 	}
 	if addrStr == "" {
 		addr, tx, _, err := DeployDataContribution(auth, c.httpClient)
 		if err != nil {
+			log.Printf("Failed to deploy DataContribution: %v", err)
 			return err
 		}
 		log.Printf("Deployed DataContribution at %s (tx: %s)", addr.Hex(), tx.Hash().Hex())
 		if err := models.SaveContractAddress(db, CTRKEY_DATA_CONTRIBUTION, addr.Hex()); err != nil {
+			log.Printf("Failed to save contract address: %v", err)
 			return err
 		}
 		c.contractAddr.DataContribution = addr
@@ -198,15 +208,18 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 	// AlgorithmReview contract
 	addrStr, err = models.GetContractAddress(db, CTRKEY_ALGORITHM_REVIEW)
 	if err != nil {
+		log.Printf("Failed to get contract address: %v", err)
 		return err
 	}
 	if addrStr == "" {
 		addr, tx, _, err := DeployAlgorithmReview(auth, c.httpClient)
 		if err != nil {
+			log.Printf("Failed to deploy AlgorithmReview: %v", err)
 			return err
 		}
 		log.Printf("Deployed AlgorithmReview at %s (tx: %s)", addr.Hex(), tx.Hash().Hex())
 		if err := models.SaveContractAddress(db, CTRKEY_ALGORITHM_REVIEW, addr.Hex()); err != nil {
+			log.Printf("Failed to save contract address: %v", err)
 			return err
 		}
 		c.contractAddr.AlgorithmReview = addr
