@@ -75,7 +75,7 @@ func GetPendingAlgoExesConfirmed(db *gorm.DB) ([]AlgoExe, error) {
 	// EXE_STATUS_QUEUED indicated that algo execution taks is not resolved
 	err := db.Table("algo_exes").
 		Joins(AlgoExeJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_EXECUTION).
-		Where("status = ?", EXE_STATUS_RUNNING).Find(&executions).Error
+		Where("algo_exes.status = ?", EXE_STATUS_RUNNING).Find(&executions).Error
 	return executions, err
 }
 

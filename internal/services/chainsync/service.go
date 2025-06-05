@@ -339,7 +339,7 @@ func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
 }
 
 func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
-	log.Println("Watching ")
+	log.Println("Watching AlgorithmResolved...")
 	contracts.WatchEventLoop(ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.AlgorithmReviewAlgorithmResolved) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewAlgorithmReview(
@@ -414,7 +414,7 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 }
 
 func (s *ChainsyncService) listenDataUsed(ctx context.Context) {
-	log.Println("Watching ")
+	log.Println("Watching DataUsed...")
 	contracts.WatchEventLoop(ctx,
 		func(opts *bind.WatchOpts, ch chan *contracts.DataContributionDataUsed) (ethereum.Subscription, error) {
 			ctr, err := contracts.NewDataContribution(
