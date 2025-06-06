@@ -33,7 +33,7 @@ services:
       - ./data/simulator:/app/sockets
 
   delong:
-    image: lilhammer/delong:test
+    image: lilhammer/delong:latest
     env_file:
       - .env
     environment:
