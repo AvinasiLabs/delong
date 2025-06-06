@@ -67,7 +67,7 @@ func LoadConfigFromEnv() (*Config, error) {
 func (c *Config) String() string {
 	var builder strings.Builder
 	builder.WriteString("\nConfiguration:\n")
-	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
+	builder.WriteString(fmt.Sprintf("\tDSTACK_CLIENT_TYPE: %s\n", c.DstackClientType))
 	builder.WriteString(fmt.Sprintf("\tIPFS API Address: %s\n", c.IpfsApiAddr))
 	builder.WriteString(fmt.Sprintf("\tEthereum RPC URL: %s\n", c.EthHttpUrl))
 	builder.WriteString(fmt.Sprintf("\tEthereum WS URL: %s\n", c.EthWsUrl))
@@ -76,7 +76,7 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tSample Service Addr: %s\n", c.SampleSrvAddr))
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
 	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
-	builder.WriteString(fmt.Sprintf("\tUse Jwt: %v", c.UseJwt))
+	builder.WriteString(fmt.Sprintf("\tUse Jwt: %v\n", c.UseJwt))
 	builder.WriteString(fmt.Sprintf("\tJwt Secret: [HIDDEN]\n"))
 	return builder.String()
 }

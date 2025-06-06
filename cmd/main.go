@@ -82,6 +82,7 @@ func main() {
 		Notifier:          notifier,
 		DiagnosticSrvAddr: config.DiagnosticSrvAddr,
 		SampleSrvAddr:     config.SampleSrvAddr,
+		UseJwt:            config.UseJwt,
 		JwtSecret:         config.JwtSecret,
 	})
 
