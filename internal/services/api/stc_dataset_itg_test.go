@@ -234,8 +234,8 @@ func TestStcDatasetList(t *testing.T) {
 		t.Fatalf("Expected data to be a map, got %T", apiResp.Data)
 	}
 
-	if _, exists := dataMap["list"]; !exists {
-		t.Errorf("Expected 'list' field in response data")
+	if _, exists := dataMap["items"]; !exists {
+		t.Errorf("Expected 'items' field in response data")
 	}
 	if _, exists := dataMap["total"]; !exists {
 		t.Errorf("Expected 'total' field in response data")
@@ -459,15 +459,15 @@ func TestStcDatasetCreateDuplicateFile(t *testing.T) {
 
 func TestStcDatasetSampleGeneration(t *testing.T) {
 	// Create a CSV with mixed data types to test sample generation
-	csvContent := `name,age,active,salary,department
-	John,25,true,50002.5,Engineering
+	csvContent := fmt.Sprintf(`name,age,active,salary,department
+	John,25,true,%d,Engineering
 	Jane,30,false,75000.0,Marketing
 	Bob,28,true,60000.25,Engineering
 	Alice,35,true,80000.75,Sales
 	Mike,22,false,45000.0,Support
 	Sarah,29,true,65000.5,Engineering
 	Tom,31,false,70000.25,Marketing
-	Lisa,27,true,55000.0,Sales`
+	Lisa,27,true,55000.0,Sales`, rand.Intn(50000))
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
