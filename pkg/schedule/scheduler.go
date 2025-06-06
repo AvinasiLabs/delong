@@ -140,7 +140,6 @@ func (s *AlgoScheduler) handleEvent(ctx context.Context, evt SchedulerEvent) {
 		}
 
 		s.handler.OnResolve(ctx, evt.ExecutionId, algoCid, resolveAt)
-		log.Printf("Start resolving for execution %v", evt.ExecutionId)
 	}
 }
 
