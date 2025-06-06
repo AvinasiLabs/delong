@@ -140,6 +140,7 @@ func (s *AlgoScheduler) handleEvent(ctx context.Context, evt SchedulerEvent) {
 		}
 
 		s.handler.OnResolve(ctx, evt.ExecutionId, algoCid, resolveAt)
+		log.Printf("Start resolving for execution %v", evt.ExecutionId)
 	}
 }
 
@@ -163,7 +164,10 @@ func (s *AlgoScheduler) ScheduleResolve(exeId uint, algoCid string, resolveAt ti
 	event := SchedulerEvent{
 		Type:        EVENT_TYPE_RESOLVE,
 		ExecutionId: exeId,
-		Payload:     map[string]any{"resolve_at": resolveAt},
+		Payload: map[string]any{
+			"resolve_at": resolveAt,
+			"algo_cid":   algoCid,
+		},
 	}
 	s.eventCh <- event
 	log.Printf("Resolve event scheduled for algo %s", algoCid)
