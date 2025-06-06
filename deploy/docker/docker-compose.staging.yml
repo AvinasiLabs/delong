@@ -23,46 +23,45 @@ services:
       - "3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
+      timeout: 10s
       retries: 10
 
   ipfs:
     image: ipfs/kubo:latest
-    environment:
-      IPFS_PATH: /data/ipfs
     volumes:
-      - ipfs_staging_data:/data/ipfs
+      - ipfs_staging_data:/root/.ipfs
     expose:
       - "5001"
     healthcheck:
       test: ["CMD", "ipfs", "id"]
       timeout: 10s
-      retries: 5
+      retries: 3
 
-  anvil:
-    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
-    command: anvil --host 0.0.0.0 --port 8545 --state /data/anvil/delong_state.json
-    volumes:
-      - anvil_staging_data:/data/anvil
+  delong-datapipe:
+    image: lilhammer/delong-pipeline:latest
     expose:
-      - "8545"
+      - "8018"
     healthcheck:
-      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://localhost:8545"]
-      timeout: 30s
-      retries: 10
+      test: ["CMD", "curl", "-f", "http://localhost:8018/api/health"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
 
   delong:
     image: lilhammer/delong:latest
     environment:
-      APP_ENV: ${APP_ENV}
+      DSTACK_CLIENT_TYPE: ${DSTACK_CLIENT_TYPE}
       IPFS_ADDR: ${IPFS_ADDR}
       ETH_HTTP_URL: ${ETH_HTTP_URL}
       ETH_WS_URL: ${ETH_WS_URL}
       CHAIN_ID: ${CHAIN_ID}
-      DIAGNOSTIC_SRV_ENDPOINT: ${DIAGNOSTIC_SRV_ENDPOINT}
       MYSQL_DSN: ${MYSQL_DSN}
+      DIAGNOSTIC_SRV_ENDPOINT: ${DIAGNOSTIC_SRV_ENDPOINT}
       OFFICIAL_ACCOUNT_PRIVATE_KEY: ${OFFICIAL_ACCOUNT_PRIVATE_KEY}
+      USE_JWT: ${USE_JWT}
       JWT_SECRET: ${JWT_SECRET}
+      SAMPLE_SRV_ADDR: ${SAMPLE_SRV_ADDR}
+      DIAGNOSTIC_SRV_ADDR: ${DIAGNOSTIC_SRV_ADDR}
     volumes:
       - dataset_staging_storage:/data/delong_dataset
       - /var/run/tappd.sock:/var/run/tappd.sock
@@ -74,16 +73,15 @@ services:
         condition: service_healthy
       ipfs:
         condition: service_healthy
-      anvil:
+      delong-datapipe:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 30s
 
 volumes:
   mysql_data:
   ipfs_staging_data:
-  anvil_staging_data:
   dataset_staging_storage:
