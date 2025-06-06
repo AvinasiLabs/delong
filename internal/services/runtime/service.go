@@ -163,7 +163,6 @@ func (s *RuntimeService) OnResolve(ctx context.Context, exeId uint, algoCid stri
 
 func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 	var (
-		exeID   uint
 		success bool
 		output  []byte
 		errmsg  []byte
@@ -171,14 +170,14 @@ func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 	)
 	defer func() {
 		if err != nil {
-			s.OnError(exeID, err)
+			s.OnError(exeId, err)
 		} else {
-			s.OnCompleted(ctx, exeID, success, output, errmsg)
+			s.OnCompleted(ctx, exeId, success, output, errmsg)
 		}
 	}()
 
 	// TODO: minitor hardware resource
-	execution, err := models.UpdateExecutionStatus(s.Db, exeID, models.EXE_STATUS_RUNNING)
+	execution, err := models.UpdateExecutionStatus(s.Db, exeId, models.EXE_STATUS_RUNNING)
 	if err != nil {
 		return
 	}
