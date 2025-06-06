@@ -130,3 +130,43 @@ func (i *IpfsStore) DownloadStream(ctx context.Context, cidStr string) (io.ReadC
 
 	return f, nil
 }
+
+// DownloadDecrypted downloads and decrypts the file with the given CID from IPFS.
+func (i *IpfsStore) DownloadDecrypted(ctx context.Context, cidStr string, key []byte) ([]byte, error) {
+	r, err := i.DownloadDecryptedStream(ctx, cidStr, key)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return io.ReadAll(r)
+}
+
+// DownloadDecryptedStream downloads and decrypts the file with the given CID from IPFS as a stream.
+func (i *IpfsStore) DownloadDecryptedStream(ctx context.Context, cidStr string, key []byte) (io.ReadCloser, error) {
+	encryptedStream, err := i.DownloadStream(ctx, cidStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download encrypted stream: %w", err)
+	}
+
+	decryptReader, err := aesgcm.NewReader(encryptedStream, key)
+	if err != nil {
+		encryptedStream.Close()
+		return nil, fmt.Errorf("failed to create decrypt reader: %w", err)
+	}
+
+	// Return a ReadCloser that closes both the decrypt reader and the underlying stream
+	return &decryptReadCloser{
+		Reader: decryptReader,
+		closer: encryptedStream,
+	}, nil
+}
+
+// decryptReadCloser wraps a Reader with a Closer to ensure proper cleanup
+type decryptReadCloser struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (d *decryptReadCloser) Close() error {
+	return d.closer.Close()
+}

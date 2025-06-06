@@ -118,10 +118,10 @@ func hashSha256(rs io.ReadSeeker) (string, error) {
 	return hashStr, nil
 }
 
-// filePath converts a file name to a standardized format: lowercase with underscores and .csv extension.
+// normalizeFileName converts a file name to a standardized format: lowercase with underscores.
 // Removes all spaces, converts to lowercase, and replaces spaces with underscores.
-// Example: "BLOOD TEST" -> "blood_test.csv"
-func filePath(fileName string) (string, error) {
+// Example: "BLOOD TEST" -> "blood_test"
+func normalizeFileName(fileName string) (string, error) {
 	// Trim spaces first
 	cleaned := strings.TrimSpace(fileName)
 	if cleaned == "" {
@@ -137,6 +137,5 @@ func filePath(fileName string) (string, error) {
 	}
 	result = strings.ReplaceAll(result, " ", "_")
 	
-	// Add .csv extension
-	return result + ".csv", nil
+	return result, nil
 }

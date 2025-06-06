@@ -22,8 +22,13 @@ func TestDatasetLoader(t *testing.T) {
 		t.Fatalf("failed to connect to db: %v", err)
 	}
 
+	ipfsStore, err := db.NewIpfsStore(config.IpfsApiAddr)
+	if err != nil {
+		t.Fatalf("failed to connect to ipfs: %v", err)
+	}
+
 	tempDir := t.TempDir()
-	loader := NewDatasetLoader(tempDir, dbConn)
+	loader := NewDatasetLoader(tempDir, dbConn, ipfsStore, nil) // nil for build, TODO
 	t.Log("Exporting datasets...")
 	if err := loader.Export(); err != nil {
 		t.Fatalf("failed to export: %v", err)

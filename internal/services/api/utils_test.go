@@ -99,7 +99,7 @@ func TestBuildGitHubDownloadUrl(t *testing.T) {
 	}
 }
 
-func TestFilePath(t *testing.T) {
+func TestNormalizeFileName(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
@@ -109,31 +109,31 @@ func TestFilePath(t *testing.T) {
 		{
 			name:        "uppercase with space",
 			input:       "BLOOD TEST",
-			expected:    "blood_test.csv",
+			expected:    "blood_test",
 			expectError: false,
 		},
 		{
 			name:        "multiple spaces",
 			input:       "BLOOD   TEST   REPORT",
-			expected:    "blood_test_report.csv",
+			expected:    "blood_test_report",
 			expectError: false,
 		},
 		{
 			name:        "already lowercase",
 			input:       "blood test",
-			expected:    "blood_test.csv",
+			expected:    "blood_test",
 			expectError: false,
 		},
 		{
 			name:        "single word",
 			input:       "GLUCOSE",
-			expected:    "glucose.csv",
+			expected:    "glucose",
 			expectError: false,
 		},
 		{
 			name:        "with leading/trailing spaces",
 			input:       "  BLOOD TEST  ",
-			expected:    "blood_test.csv",
+			expected:    "blood_test",
 			expectError: false,
 		},
 		{
@@ -152,7 +152,7 @@ func TestFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := filePath(tt.input)
+			result, err := normalizeFileName(tt.input)
 			
 			if tt.expectError {
 				if err == nil {

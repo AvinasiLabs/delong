@@ -16,6 +16,7 @@ ON bt.entity_id = static_datasets.id
 type StaticDataset struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name         string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_name" json:"name"`
+	UiName       string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_ui_name" json:"ui_name"`
 	Desc         string    `gorm:"type:text" json:"desc"`
 	FileHash     string    `gorm:"type:varchar(64);not null;uniqueIndex:idx_file_hash" json:"file_hash"` // SHA-256 hash of original file for deduplication
 	IpfsCid      string    `gorm:"type:varchar(255);not null" json:"ipfs_cid"`
@@ -34,6 +35,7 @@ type StaticDataset struct {
 
 type CreateStcDatasetReq struct {
 	Name         string `json:"name"`
+	UiName       string `json:"ui_name"`
 	Desc         string `json:"desc"`
 	FileHash     string `json:"file_hash"`
 	IpfsCid      string `json:"ipfs_cid"`
@@ -48,6 +50,7 @@ type CreateStcDatasetReq struct {
 func CreateStcDataset(db *gorm.DB, req CreateStcDatasetReq) (*StaticDataset, error) {
 	asset := StaticDataset{
 		Name:         req.Name,
+		UiName:       req.UiName,
 		Desc:         req.Desc,
 		FileHash:     req.FileHash,
 		IpfsCid:      req.IpfsCid,
@@ -100,6 +103,18 @@ func GetStcDatasetByHash(db *gorm.DB, hash string) (*StaticDataset, error) {
 	err := db.Model(&StaticDataset{}).
 		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
 		Where("file_hash = ?", hash).
+		First(&dataset).Error
+	if err != nil {
+		return nil, err
+	}
+	return &dataset, err
+}
+
+func GetStcDatasetByName(db *gorm.DB, name string) (*StaticDataset, error) {
+	var dataset StaticDataset
+	err := db.Model(&StaticDataset{}).
+		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
+		Where("name = ?", name).
 		First(&dataset).Error
 	if err != nil {
 		return nil, err

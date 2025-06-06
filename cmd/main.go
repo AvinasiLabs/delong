@@ -94,7 +94,7 @@ func main() {
 	})
 
 	runtimeService := runtime.NewService(runtime.RuntimeServiceOptions{
-		Loader:        runtime.NewDatasetLoader("/data/delong_dataset", mysqlDb),
+		Loader:        runtime.NewDatasetLoader("/data/delong_dataset", mysqlDb, ipfsStore, keyVault),
 		Db:            mysqlDb,
 		IpfsStore:     ipfsStore,
 		CtrCaller:     ctrCaller,

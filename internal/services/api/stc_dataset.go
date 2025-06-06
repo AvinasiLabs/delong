@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"delong/internal/consts"
 	"delong/internal/models"
 	"delong/internal/types"
 	"delong/pkg/bizcode"
@@ -303,6 +304,24 @@ func (r *StaticDatasetResource) generateSampleCSV(ctx context.Context, originalF
 	return csvBuffer.String(), nil
 }
 
+// addStaticPrefix adds the static dataset prefix to distinguish from dynamic datasets
+func addStaticPrefix(name string) string {
+	return consts.StaticDatasetPrefix + name
+}
+
+// removeStaticPrefix removes the static dataset prefix for display purposes
+func removeStaticPrefix(name string) string {
+	if strings.HasPrefix(name, consts.StaticDatasetPrefix) {
+		return name[len(consts.StaticDatasetPrefix):]
+	}
+	return name
+}
+
+// isStaticDataset checks if a dataset name has the static prefix
+func isStaticDataset(name string) bool {
+	return strings.HasPrefix(name, consts.StaticDatasetPrefix)
+}
+
 func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 	req := types.StcDatasetCreateReq{}
 	if err := c.ShouldBind(&req); err != nil {
@@ -335,7 +354,7 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 
 	// Upload to ipfs
 	ctx := c.Request.Context()
-	kc := tee.NewKeyContext(tee.KEYKIND_ENC_KEY, req.Author, "encrypt static dataset")
+	kc := tee.NewKeyContext(tee.KEYKIND_ENC_KEY, req.Author, consts.PurposeEncStaticDataset)
 	key, err := r.KeyVault.DeriveSymmetricKey(ctx, kc)
 	if err != nil {
 		log.Printf("Failed to derive symmetric key: %v", err)
@@ -399,8 +418,15 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 	}
 
 	// Create static dataset
+	normName, err := normalizeFileName(req.Name)
+	if err != nil {
+		log.Printf("Failed to normalize name: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
 	createReq := models.CreateStcDatasetReq{
-		Name:         req.Name,
+		Name:         fmt.Sprintf("%s%s", consts.StaticDatasetPrefix, normName), // Store with prefix
+		UiName:       req.Name,
 		Desc:         req.Desc,
 		FileHash:     hash,
 		IpfsCid:      cid,
@@ -409,7 +435,7 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 		Author:       req.Author,
 		AuthorWallet: req.AuthorWallet,
 		SampleUrl:    sampleUrl,
-		FilePath:     fmt.Sprintf("/data/%s.csv", req.Name),
+		FilePath:     fmt.Sprintf("/data/%s.csv", normName),
 	}
 
 	dataset, err := models.CreateStcDataset(dbtx, createReq)

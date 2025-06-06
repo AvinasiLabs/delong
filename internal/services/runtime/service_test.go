@@ -32,7 +32,7 @@ func TestRuntimeService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loader := NewDatasetLoader(t.TempDir(), mysqlConn)
+	loader := NewDatasetLoader(t.TempDir(), mysqlConn, ipfsStore, nil) // nil for build, TODO
 	rt := NewService(RuntimeServiceOptions{
 		Db:            mysqlConn,
 		Loader:        loader,
