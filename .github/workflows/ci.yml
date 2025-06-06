@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  test:
+    name: Integration Tests Job
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Create environment file
+        run: |
+          cat > .env << EOF
+          ETH_HTTP_URL=${{ secrets.ETH_HTTP_URL }}
+          ETH_WS_URL=${{ secrets.ETH_WS_URL }}
+          OFFICIAL_ACCOUNT_PRIVATE_KEY=${{ secrets.OFFICIAL_ACCOUNT_PRIVATE_KEY }}
+          EOF
+
+      - name: Run integration tests
+        run: |
+          docker compose -f deploy/docker/docker-compose.local.yml up -d
+          sleep 60
+          go mod download
+          go test -v ./...
+          docker compose -f deploy/docker/docker-compose.local.yml down -v
