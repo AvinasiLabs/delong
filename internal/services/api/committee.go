@@ -111,3 +111,24 @@ func (r *CommitteeResource) TakeHandler(c *gin.Context) {
 
 	responser.ResponseData(c, member)
 }
+
+func (r *CommitteeResource) IsCommitteeMember(c *gin.Context) {
+	memberWallet := c.Query("member_wallet")
+	if memberWallet == "" {
+		log.Printf("Missing member_wallet query parameter")
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
+		return
+	}
+
+	member, err := models.GetCommitteeMemberByWallet(r.MysqlDb, memberWallet)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			responser.ResponseData(c, false)
+			return
+		}
+		log.Printf("Failed to get committee member: %v", err)
+		responser.ResponseError(c, bizcode.MYSQL_READ_FAIL)
+		return
+	}
+	responser.ResponseData(c, member.IsApproved)
+}

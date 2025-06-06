@@ -68,3 +68,13 @@ func GetConfirmedCommitteeMemberByID(db *gorm.DB, id uint) (*CommitteeMember, er
 		First(&member).Error
 	return &member, err
 }
+
+func GetCommitteeMemberByWallet(db *gorm.DB, wallet string) (*CommitteeMember, error) {
+	var member CommitteeMember
+	err := db.Table("committee_members").
+		Joins("JOIN blockchain_transactions bt ON bt.entity_id = committee_members.id").
+		Where("bt.status = ? AND bt.entity_type = ?", TX_STATUS_CONFIRMED, ENTITY_TYPE_COMMITTEE).
+		Where("committee_members.member_wallet = ?", wallet).
+		First(&member).Error
+	return &member, err
+}

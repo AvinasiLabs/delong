@@ -92,6 +92,7 @@ func (s *ApiService) Init(ctx context.Context) error {
 
 	committee := &CommitteeResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/committee", committee)
+	apiGroup.GET("/committee/is-member", committee.IsCommitteeMember)
 
 	votes := &VoteResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/votes", votes)
@@ -102,7 +103,8 @@ func (s *ApiService) Init(ctx context.Context) error {
 
 	stcDataset := &StaticDatasetResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/static-datasets", stcDataset)
-	apiGroup.GET("/sample/:cid", stcDataset.SampleHandler)
+	s.engine.GET("/sample/:cid", stcDataset.SampleHandler)
+	// apiGroup.GET("/sample/:cid", stcDataset.SampleHandler)
 
 	return nil
 }
