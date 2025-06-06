@@ -75,11 +75,7 @@ func (s *ApiService) Init(ctx context.Context) error {
 	s.engine.GET("/ws", ws.NewHandler(s.Notifier.Hub()))
 	apiGroup := s.engine.Group("/api")
 
-	if s.UseJwt {
-		log.Printf("Enable jwt auth.")
-		apiGroup.Use(jwtMiddleware.Auth())
-	}
-	log.Print("Disable jwt auth.")
+	apiGroup.Use(jwtMiddleware.Auth(s.UseJwt))
 
 	datasets := &DatasetResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/datasets", datasets)

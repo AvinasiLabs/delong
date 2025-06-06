@@ -37,7 +37,7 @@ func setupTestRouter() *gin.Engine {
 
 	// Protected route that requires JWT authentication
 	protected := router.Group("/api")
-	protected.Use(jwtMiddleware.Auth())
+	protected.Use(jwtMiddleware.Auth(true))
 	protected.GET("/test", func(c *gin.Context) {
 		role, _ := GetRole(c)
 		c.JSON(200, gin.H{

@@ -4,6 +4,7 @@ import (
 	"delong/pkg/bizcode"
 	"delong/pkg/responser"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -32,8 +33,17 @@ func NewJwtMiddleware(secret string) *JwtMiddleware {
 }
 
 // Auth returns a Gin middleware function that validates JWT tokens from the Authorization header.
-func (j *JwtMiddleware) Auth() gin.HandlerFunc {
+func (j *JwtMiddleware) Auth(enable bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c.Set("auth_enable", enable)
+
+		if !enable {
+			log.Print("Jwt auth is disabled.")
+			c.Next()
+			return
+		}
+		log.Print("Jwt auth is enabled.")
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			responser.ResponseError(c, bizcode.UNAUTHORIZED)
@@ -85,23 +95,14 @@ func (j *JwtMiddleware) Auth() gin.HandlerFunc {
 	}
 }
 
-// GetUserID retrieves the user ID from the Gin context.
-// func GetUserID(c *gin.Context) (string, bool) {
-// 	userID, exists := c.Get("user_id")
-// 	if !exists {
-// 		return "", false
-// 	}
-// 	return userID.(string), true
-// }
-
-// GetUsername retrieves the username from the Gin context.
-// func GetUsername(c *gin.Context) (string, bool) {
-// 	username, exists := c.Get("username")
-// 	if !exists {
-// 		return "", false
-// 	}
-// 	return username.(string), true
-// }
+// GetAuthEnable retrieves the auth enable from the Gin context.
+func GetAuthEnable(c *gin.Context) (bool, bool) {
+	enable, exists := c.Get("auth_enable")
+	if !exists {
+		return false, false
+	}
+	return enable.(bool), true
+}
 
 // GetRole retrieves the role from the Gin context.
 func GetRole(c *gin.Context) (string, bool) {
@@ -120,3 +121,21 @@ func GetClaims(c *gin.Context) (*Claims, bool) {
 	}
 	return claims.(*Claims), true
 }
+
+// GetUserID retrieves the user ID from the Gin context.
+// func GetUserID(c *gin.Context) (string, bool) {
+// 	userID, exists := c.Get("user_id")
+// 	if !exists {
+// 		return "", false
+// 	}
+// 	return userID.(string), true
+// }
+
+// GetUsername retrieves the username from the Gin context.
+// func GetUsername(c *gin.Context) (string, bool) {
+// 	username, exists := c.Get("username")
+// 	if !exists {
+// 		return "", false
+// 	}
+// 	return username.(string), true
+// }

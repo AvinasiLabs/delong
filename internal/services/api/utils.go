@@ -86,6 +86,14 @@ func extractRepoName(link string) (string, error) {
 }
 
 func isAdmin(c *gin.Context) (bool, error) {
+	enable, keyExist := GetAuthEnable(c)
+	if !keyExist {
+		return false, fmt.Errorf("failed to get key of auth_enable")
+	}
+	if !enable {
+		return true, nil
+	}
+
 	role, exist := GetRole(c)
 	if !exist {
 		return false, fmt.Errorf("failed to get jwt payload of role")
@@ -127,15 +135,15 @@ func normalizeFileName(fileName string) (string, error) {
 	if cleaned == "" {
 		return "", fmt.Errorf("fileName cannot be empty")
 	}
-	
+
 	// Convert to lowercase
 	result := strings.ToLower(cleaned)
-	
+
 	// Replace multiple consecutive spaces with single underscore
 	for strings.Contains(result, "  ") {
 		result = strings.ReplaceAll(result, "  ", " ")
 	}
 	result = strings.ReplaceAll(result, " ", "_")
-	
+
 	return result, nil
 }
