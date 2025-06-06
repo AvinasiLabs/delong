@@ -365,14 +365,14 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 			blockNumber := evt.Raw.BlockNumber
 
 			// We need to fetch the block to get its timestamp
-			block, err := s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+			_, err = s.CtrCaller.HttpClient().BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 			if err != nil {
 				log.Printf("Failed to fetch block details: %v", err)
 				s.Notifier.PushError(txHash, bizcode.BLOCK_QUERY_FAIL)
 				return
 			}
 
-			blockTime := time.Unix(int64(block.Time()), 0)
+			// blockTime := time.Unix(int64(block.Time()), 0)
 
 			// Determine transaction status based on receipt
 			var status string
@@ -383,14 +383,15 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 			}
 
 			// Update transaction status
-			transaction, err := models.UpdateTransactionStatus(s.Db, txHash, status, &blockNumber, &blockTime)
-			if err != nil {
-				log.Printf("Failed to update transaction status to %s: %v", status, err)
-				s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
-				return
-			}
+			// transaction, err := models.UpdateTransactionStatus(s.Db, txHash, status, &blockNumber, &blockTime)
+			// if err != nil {
+			// 	log.Printf("Failed to update transaction status to %s: %v", status, err)
+			// 	s.Notifier.PushError(txHash, bizcode.MYSQL_READ_FAIL)
+			// 	return
+			// }
 
-			s.Notifier.PushTxResult(txHash, transaction)
+			// no entity was created while algo resolved
+			s.Notifier.PushTxResult(txHash, nil)
 
 			// algoCid := evt.Cid
 			exeId := uint(evt.ExecutionId.Uint64())
@@ -410,6 +411,7 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 					return
 				}
 			}
+
 		})
 }
 
