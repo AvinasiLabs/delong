@@ -32,15 +32,15 @@ func NewKeyVault(adapter IDstackClient) *KeyVault {
 }
 
 // NewKeyVaultFromConfig create KeyVault via config
-func NewKeyVaultFromConfig(appenv string) *KeyVault {
+func NewKeyVaultFromConfig(clientType string) *KeyVault {
 	var client IDstackClient
-	switch appenv {
-	case "local":
+	switch clientType {
+	case "dstack":
 		client = NewDstackClientAdapter()
-	case "staging":
+	case "tappd":
 		client = NewTappdClientAdapter()
 	default:
-		log.Fatalf("Unsupported app env: %v", appenv)
+		log.Fatalf("Unsupported dstack client type: %v", clientType)
 	}
 
 	return NewKeyVault(client)

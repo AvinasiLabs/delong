@@ -44,7 +44,7 @@ func main() {
 		log.Fatalf("Failed to auto migrate database: %v", err)
 	}
 
-	keyVault := tee.NewKeyVaultFromConfig(config.AppEnv)
+	keyVault := tee.NewKeyVaultFromConfig(config.DstackClientType)
 
 	fundingPrivKey, err := crypto.HexToECDSA(config.OfficialAccountPrivateKey)
 	if err != nil {
@@ -83,7 +83,6 @@ func main() {
 		DiagnosticSrvAddr: config.DiagnosticSrvAddr,
 		SampleSrvAddr:     config.SampleSrvAddr,
 		JwtSecret:         config.JwtSecret,
-		AppEnv:            config.AppEnv,
 	})
 
 	chainsyncService := chainsync.NewService(chainsync.ChainsyncServiceOptions{

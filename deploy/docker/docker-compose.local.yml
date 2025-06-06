@@ -37,7 +37,7 @@ services:
     env_file:
       - .env
     environment:
-      - APP_ENV=local
+      - DSTACK_CLIENT_TYPE=dstack
       - IPFS_ADDR=/dns/ipfs/tcp/5001
       - ETH_HTTP_URL=${ETH_HTTP_URL}
       - ETH_WS_URL=${ETH_WS_URL}
@@ -45,6 +45,7 @@ services:
       - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
       - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
       - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
+      - USE_JWT=false
       - JWT_SECRET=jwt_is_not_required_in_local
       - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
       - DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008

@@ -35,8 +35,8 @@ type ApiServiceOptions struct {
 	KeyVault          *tee.KeyVault
 	Notifier          *ws.Notifier
 	DiagnosticSrvAddr string
+	UseJwt            bool
 	JwtSecret         string
-	AppEnv            string
 	SampleSrvAddr     string
 }
 
@@ -75,7 +75,7 @@ func (s *ApiService) Init(ctx context.Context) error {
 	s.engine.GET("/ws", ws.NewHandler(s.Notifier.Hub()))
 	apiGroup := s.engine.Group("/api")
 
-	if s.AppEnv != "local" {
+	if s.UseJwt {
 		apiGroup.Use(jwtMiddleware.Auth())
 	}
 

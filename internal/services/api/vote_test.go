@@ -75,7 +75,6 @@ func TestVoteList(t *testing.T) {
 }
 
 func TestVoteSetVotingDuration(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
 	duration := rand.Intn(290) + 10
 
 	req := types.SetVotingDurationReq{
@@ -133,7 +132,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	keyVault := tee.NewKeyVaultFromConfig(config.AppEnv)
+	keyVault := tee.NewKeyVaultFromConfig(config.DstackClientType)
 	ethAcc, err := keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		t.Fatal(err)
