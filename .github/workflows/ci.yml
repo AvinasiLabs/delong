@@ -33,34 +33,14 @@ jobs:
 
       - name: Run integration tests
         run: |
-          echo "=== Starting Docker events monitoring in background ==="
-          docker events > docker_events.log 2>&1 &
-          EVENTS_PID=$!
+          docker compose -f deploy/docker/docker-compose.local.yml up -d
+          sleep 60
 
-          echo "=== Starting services with real-time output (non-detached) ==="
-          timeout 120 docker compose -f deploy/docker/docker-compose.local.yml up --abort-on-container-exit || true
+          echo "=== Docker containers status ==="
+          docker compose -f deploy/docker/docker-compose.local.yml ps
 
-          echo "=== Kill events monitoring ==="
-          kill $EVENTS_PID 2>/dev/null || true
+          echo "=== Running tests ==="
+          go mod download
+          go test -v ./...
 
-          echo "=== Container startup events ==="
-          cat docker_events.log | grep -E "(container|image)" || echo "No container events found"
-
-          echo "=== All containers (including failed/exited) ==="
-          docker ps -a
-
-          echo "=== Get logs from ALL services (including failed ones) ==="
-          docker compose -f deploy/docker/docker-compose.local.yml logs --no-color || true
-
-          echo "=== Specific logs for failed services ==="
-          echo "--- dstack-simulator logs ---"
-          docker compose -f deploy/docker/docker-compose.local.yml logs dstack-simulator --no-color || echo "No dstack-simulator container to get logs from"
-
-          echo "--- delong logs ---"
-          docker compose -f deploy/docker/docker-compose.local.yml logs delong --no-color || echo "No delong container to get logs from"
-
-          echo "=== Container exit codes ==="
-          docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Command}}" | grep -E "(dstack|delong)" || echo "No dstack/delong containers found"
-
-          echo "=== Cleanup ==="
-          docker compose -f deploy/docker/docker-compose.local.yml down -v || trues
+          docker compose -f deploy/docker/docker-compose.local.yml down -v
