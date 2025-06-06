@@ -62,6 +62,8 @@ services:
         condition: service_healthy
       delong-datapipe:
         condition: service_healthy
+      dstack-simulator:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       timeout: 10s
