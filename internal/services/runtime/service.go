@@ -142,7 +142,7 @@ func (s *RuntimeService) OnCompleted(ctx context.Context, executionID uint, succ
 }
 
 func (s *RuntimeService) OnResolve(ctx context.Context, exeId uint, algoCid string, resolveAt time.Time) {
-	delay := time.Until(resolveAt)
+	delay := time.Until(resolveAt) + 60 // extra 60 seconds
 	if delay <= 0 {
 		delay = time.Second
 	}
