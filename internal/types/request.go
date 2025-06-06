@@ -11,7 +11,9 @@ type UploadReportReq struct {
 type SubmitAlgoExeReq struct {
 	ScientistWallet string `json:"scientist_wallet" binding:"required,ethwallet"` // hex
 	Dataset         string `json:"dataset" binding:"required"`
-	AlgoLink        string `json:"algo_link" binding:"required"`
+	GithubRepo      string `json:"github_repo" binding:"required"` // github code url
+	CommitHash      string `json:"commit_hash" binding:"required"`
+	AlgoLink        string `json:"algo_link"`
 }
 
 type VoteReq struct {
@@ -36,7 +38,6 @@ type DatasetCreateReq struct {
 }
 
 type DatasetUpdateReq struct {
-	UiName      string `json:"ui_name" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 

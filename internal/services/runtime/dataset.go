@@ -147,7 +147,7 @@ func (dl *DatasetLoader) Export() error {
 	version := time.Now().Format("20060102_150405")
 	datasetDir := filepath.Join(dl.storageRoot, version)
 
-	var datasets []models.DatasetRegistry
+	var datasets []models.DynamicDataset
 	if err := dl.db.Find(&datasets).Error; err != nil {
 		return fmt.Errorf("failed to list datasets: %w", err)
 	}

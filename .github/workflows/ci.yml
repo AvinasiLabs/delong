@@ -35,6 +35,15 @@ jobs:
         run: |
           docker compose -f deploy/docker/docker-compose.local.yml up -d
           sleep 60
+
+          echo "=== Docker containers status ==="
+          docker compose -f deploy/docker/docker-compose.local.yml ps
+
+          echo "=== Testing service connectivity ==="
+          curl -v http://localhost:8080/health || echo "Health check failed"
+
+
+          echo "=== Running tests ==="
           go mod download
           go test -v ./...
           docker compose -f deploy/docker/docker-compose.local.yml down -v

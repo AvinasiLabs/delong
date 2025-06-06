@@ -40,6 +40,35 @@ func parsePageParams(c *gin.Context) (int, int) {
 	return page, pageSize
 }
 
+// buildGitHubDownloadUrl constructs a GitHub archive download URL and extracts the repo name.
+// Returns the download URL and repo name in "owner/repo" format.
+// Example repoUrl: https://github.com/lilhammer111/algo-demo
+// Example sha: c73e8d62a0ae5d68040cabb461c7b51b7630020c
+// Example result: https://codeload.github.com/lilhammer111/algo-demo/tar.gz/c73e8d62a0ae5d68040cabb461c7b51b7630020c
+func buildGitHubDownloadUrl(repoUrl string, commitSha string) (string, string, error) {
+	// Parse the repository URL to extract owner/repo
+	parsed, err := url.Parse(repoUrl)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Extract owner/repo from path (e.g., "/lilhammer111/algo-demo")
+	path := strings.Trim(parsed.Path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("invalid repository url")
+	}
+
+	owner := parts[0]
+	repo := parts[1]
+	repoName := fmt.Sprintf("%s/%s", owner, repo)
+
+	// Build the download URL
+	downloadUrl := fmt.Sprintf("https://codeload.github.com/%s/%s/tar.gz/%s", owner, repo, commitSha)
+
+	return downloadUrl, repoName, nil
+}
+
 // extractRepoName extracts the "owner/repo" portion from a github repository download URL.
 func extractRepoName(link string) (string, error) {
 	parsed, err := url.Parse(link)
@@ -87,4 +116,27 @@ func hashSha256(rs io.ReadSeeker) (string, error) {
 	}
 
 	return hashStr, nil
+}
+
+// filePath converts a file name to a standardized format: lowercase with underscores and .csv extension.
+// Removes all spaces, converts to lowercase, and replaces spaces with underscores.
+// Example: "BLOOD TEST" -> "blood_test.csv"
+func filePath(fileName string) (string, error) {
+	// Trim spaces first
+	cleaned := strings.TrimSpace(fileName)
+	if cleaned == "" {
+		return "", fmt.Errorf("fileName cannot be empty")
+	}
+	
+	// Convert to lowercase
+	result := strings.ToLower(cleaned)
+	
+	// Replace multiple consecutive spaces with single underscore
+	for strings.Contains(result, "  ") {
+		result = strings.ReplaceAll(result, "  ", " ")
+	}
+	result = strings.ReplaceAll(result, " ", "_")
+	
+	// Add .csv extension
+	return result + ".csv", nil
 }

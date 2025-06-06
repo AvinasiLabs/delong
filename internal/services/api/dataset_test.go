@@ -46,7 +46,7 @@ func createDataset(t *testing.T) uint {
 		t.Fatalf("POST response code != SUCCESS: %v", apiResp.Code)
 	}
 
-	var created models.DatasetRegistry
+	var created models.DynamicDataset
 	if err := json.Unmarshal(apiResp.Data, &created); err != nil {
 		t.Fatalf("Failed to decode created dataset: %v", err)
 	}
@@ -99,10 +99,10 @@ func TestDatasetList(t *testing.T) {
 	}
 
 	var list struct {
-		Items    []models.DatasetRegistry `json:"items"`
-		Total    int                      `json:"total"`
-		Page     int                      `json:"page"`
-		PageSize int                      `json:"page_size"`
+		Items    []models.DynamicDataset `json:"items"`
+		Total    int                     `json:"total"`
+		Page     int                     `json:"page"`
+		PageSize int                     `json:"page_size"`
 	}
 	if err := json.Unmarshal(apiResp.Data, &list); err != nil {
 		t.Fatalf("Failed to parse dataset list: %v", err)
@@ -116,10 +116,8 @@ func TestDatasetList(t *testing.T) {
 
 func TestDatasetUpdate(t *testing.T) {
 	id := createDataset(t)
-	test_update_title := "Updated UiName"
 	test_update_desc := "Updated Description"
 	updateBody := types.DatasetUpdateReq{
-		UiName:      test_update_title,
 		Description: test_update_desc,
 	}
 	jsonBody, _ := json.Marshal(updateBody)
@@ -146,16 +144,12 @@ func TestDatasetUpdate(t *testing.T) {
 		t.Fatalf("Expected SUCCESS on update, got %v", apiResp.Code)
 	}
 
-	var updated models.DatasetRegistry
+	var updated models.DynamicDataset
 	_ = json.Unmarshal(apiResp.Data, &updated)
 	t.Logf("Update Response: %v", updated)
 
-	if updated.UiName != test_update_title {
-		t.Errorf("Expected title updated, got: %s", updated.UiName)
-	}
-
 	if updated.Description != test_update_desc {
-		t.Errorf("Expected title updated, got: %s", updated.UiName)
+		t.Errorf("Expected title updated, got: %s", updated.Description)
 	}
 }
 

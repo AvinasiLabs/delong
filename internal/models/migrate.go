@@ -17,7 +17,7 @@ func AutoMigrateDatabase(db *gorm.DB) error {
 		&BlockchainTransaction{},
 		&CommitteeMember{},
 		&ContractMeta{},
-		&DatasetRegistry{},
+		&DynamicDataset{},
 		&DataUsage{},
 		&TestReport{},
 		&TestResult{},

@@ -28,19 +28,20 @@ func (r *AlgoExeResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
-	repo, err := extractRepoName(req.AlgoLink)
-	if err != nil {
-		log.Printf("Failed to extract repo name from algo link: %v", err)
-		responser.ResponseError(c, bizcode.BAD_REQUEST)
-		return
-	}
+	algoLink, repo, err := buildGitHubDownloadUrl(req.GithubRepo, req.CommitHash)
+	// repo, err := extractRepoName(req.AlgoLink)
+	// if err != nil {
+	// 	log.Printf("Failed to extract repo name from algo link: %v", err)
+	// 	responser.ResponseError(c, bizcode.BAD_REQUEST)
+	// 	return
+	// }
 
 	var algoCid string
-	algo, _ := models.GetAlgoByLink(r.MysqlDb, req.AlgoLink)
+	algo, _ := models.GetAlgoByLink(r.MysqlDb, algoLink)
 
 	// algo NOT existed
 	if algo == nil {
-		resp, err := http.Get(req.AlgoLink)
+		resp, err := http.Get(algoLink)
 		if err != nil {
 			log.Printf("Failed to open algorithm link: %v", err)
 			responser.ResponseError(c, bizcode.AlGO_LINK_INVALID)
@@ -55,7 +56,7 @@ func (r *AlgoExeResource) CreateHandler(c *gin.Context) {
 			return
 		}
 
-		algo, err = models.CreateAlgo(r.MysqlDb, repo, req.AlgoLink, algoCid)
+		algo, err = models.CreateAlgo(r.MysqlDb, repo, algoLink, algoCid)
 		if err != nil {
 			log.Printf("Failed to create algorithm record: %v", err)
 			responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)

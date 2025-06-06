@@ -15,7 +15,7 @@ ON bt.entity_id = static_datasets.id
 
 type StaticDataset struct {
 	ID           uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name         string    `gorm:"type:varchar(255);not null;index:idx_name" json:"name"`
+	Name         string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_name" json:"name"`
 	Desc         string    `gorm:"type:text" json:"desc"`
 	FileHash     string    `gorm:"type:varchar(64);not null;uniqueIndex:idx_file_hash" json:"file_hash"` // SHA-256 hash of original file for deduplication
 	IpfsCid      string    `gorm:"type:varchar(255);not null" json:"ipfs_cid"`
@@ -24,6 +24,7 @@ type StaticDataset struct {
 	Author       string    `gorm:"type:varchar(255)" json:"author"`
 	AuthorWallet string    `gorm:"type:varchar(255);not null;index:idx_author_wallet" json:"author_wallet"`
 	SampleUrl    string    `gorm:"type:varchar(255)" json:"sample_url"`
+	FilePath     string    `gorm:"type:varchar(255)" json:"file_path"`
 	CreatedAt    time.Time `gorm:"autoCreateTime;index:idx_created_at" json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 	// Tags    string `gorm:"type:text" json:"tags"`            // separated by commas
@@ -41,6 +42,7 @@ type CreateStcDatasetReq struct {
 	Author       string `json:"author"`
 	AuthorWallet string `json:"author_wallet"`
 	SampleUrl    string `json:"sample_url"`
+	FilePath     string `json:"file_path"`
 }
 
 func CreateStcDataset(db *gorm.DB, req CreateStcDatasetReq) (*StaticDataset, error) {
@@ -54,6 +56,7 @@ func CreateStcDataset(db *gorm.DB, req CreateStcDatasetReq) (*StaticDataset, err
 		Author:       req.Author,
 		AuthorWallet: req.AuthorWallet,
 		SampleUrl:    req.SampleUrl,
+		FilePath:     req.FilePath,
 		// Tags:       req.Tags,
 		// Version:    req.Version,
 		// License:    req.License,

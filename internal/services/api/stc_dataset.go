@@ -409,6 +409,7 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 		Author:       req.Author,
 		AuthorWallet: req.AuthorWallet,
 		SampleUrl:    sampleUrl,
+		FilePath:     fmt.Sprintf("/data/%s.csv", req.Name),
 	}
 
 	dataset, err := models.CreateStcDataset(dbtx, createReq)

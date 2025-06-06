@@ -6,6 +6,7 @@ import (
 	"delong/pkg/bizcode"
 	"delong/pkg/responser"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,7 @@ func (r *DatasetResource) CreateHandler(c *gin.Context) {
 		return
 	}
 
-	dataset, err := models.CreateDataset(r.MysqlDb, req.Name, req.UiName, req.Description)
+	dataset, err := models.CreateDataset(r.MysqlDb, req.Name, req.UiName, req.Description, fmt.Sprintf("/data/%s.csv", req.Name))
 	if err != nil {
 		log.Printf("Failed to create dataset in db: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
@@ -92,7 +93,7 @@ func (r *DatasetResource) UpdateHandler(c *gin.Context) {
 		return
 	}
 
-	updated, err := models.UpdateDataset(r.MysqlDb, id, req.UiName, req.Description)
+	updated, err := models.UpdateDataset(r.MysqlDb, id, req.Description)
 	if err != nil {
 		log.Printf("Failed to update dataset: %v", err)
 		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
