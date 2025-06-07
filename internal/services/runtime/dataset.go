@@ -284,7 +284,7 @@ func (dl *DatasetLoader) acquireStaticDataset(dataset string) (string, string, e
 
 	// Check if already downloaded and cached
 	versionPath := filepath.Join(dl.storageRoot, version)
-	filePath := filepath.Join(versionPath, staticDataset.FilePath[1:]) // Remove leading "/"
+	filePath := filepath.Join(versionPath, staticDataset.Name) // Remove leading "/"
 
 	if _, err := os.Stat(filePath); err == nil {
 		// File already exists, just increment reference
