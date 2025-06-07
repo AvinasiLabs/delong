@@ -312,7 +312,7 @@ func (dl *DatasetLoader) acquireStaticDataset(dataset string) (string, string, e
 	}
 
 	// Create directory structure
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(versionPath, 0755); err != nil {
 		return "", "", fmt.Errorf("failed to create directory structure: %w", err)
 	}
 
