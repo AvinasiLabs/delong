@@ -358,7 +358,7 @@ func (s *RuntimeService) runDatasetLifecycle(ctx context.Context) {
 	}
 
 	updateTicker := time.NewTicker(15 * time.Minute) // Update datasets every 15 minutes
-	cleanupTicker := time.NewTicker(5 * time.Minute) // Clean unused datasets versions every 5 minutes
+	cleanupTicker := time.NewTicker(1 * time.Hour)   // Clean unused datasets versions every 5 minutes
 	defer updateTicker.Stop()
 	defer cleanupTicker.Stop()
 	for {

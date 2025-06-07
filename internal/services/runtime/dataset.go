@@ -360,9 +360,13 @@ func (dl *DatasetLoader) Cleanup() error {
 		if version == currentVersion {
 			continue
 		}
-		if ref.RefCount == 0 {
+		if ref.RefCount <= 0 {
 			datasetDir := filepath.Join(dl.storageRoot, version)
-			os.RemoveAll(datasetDir)
+			// check out: ensure no running containers use this directory
+			if _, err := os.Stat(datasetDir); err == nil {
+				log.Printf("Cleaning up unused dataset directory: %s", datasetDir)
+				os.RemoveAll(datasetDir)
+			}
 			delete(dl.refCounts, version)
 		}
 	}
