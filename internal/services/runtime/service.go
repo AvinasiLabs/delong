@@ -211,10 +211,20 @@ func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 	// Acquire current version of dataset used by algorithm
 	path, version, err := s.Loader.AcquireCurrent(execution.UsedDataset)
 	if err != nil {
-		// log.Printf("Failed to acquire current dataset:%v", err)
+		log.Printf("Failed to acquire current dataset:%v", err)
 		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Failed to acquire dataset")
 		return
 	}
+	log.Printf("DEBUG: Acquired dataset path=%s, version=%s", path, version)
+	// Verify dataset path exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Printf("ERROR: Dataset path %s does not exist after acquisition!", path)
+		err = fmt.Errorf("dataset path does not exist: %s", path)
+		return
+	} else {
+		log.Printf("DEBUG: Dataset path %s exists", path)
+	}
+
 	defer s.Loader.Release(execution.UsedDataset, version)
 
 	// Build docker environment variables and mounts

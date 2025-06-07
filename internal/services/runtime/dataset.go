@@ -286,17 +286,21 @@ func (dl *DatasetLoader) acquireStaticDataset(dataset string) (string, string, e
 	versionPath := filepath.Join(dl.storageRoot, version)
 	filePath := filepath.Join(versionPath, staticDataset.Name) // Remove leading "/"
 
-	if _, err := os.Stat(filePath); err == nil {
-		// File already exists, just increment reference
-		dl.rm.Lock()
-		defer dl.rm.Unlock()
-		_, ok := dl.refCounts[version]
-		if !ok {
-			dl.refCounts[version] = &MountVersionRef{RefCount: 1}
-		} else {
-			dl.refCounts[version].RefCount++
+	// Check if directory and file both exist
+	if _, err := os.Stat(versionPath); err == nil {
+		if _, err := os.Stat(filePath); err == nil {
+			log.Printf("Dataset already cached at %s", versionPath)
+			// Both directory and file exist
+			dl.rm.Lock()
+			defer dl.rm.Unlock()
+			_, ok := dl.refCounts[version]
+			if !ok {
+				dl.refCounts[version] = &MountVersionRef{RefCount: 1}
+			} else {
+				dl.refCounts[version].RefCount++
+			}
+			return versionPath, version, nil
 		}
-		return versionPath, version, nil
 	}
 
 	// Download and decrypt from IPFS
