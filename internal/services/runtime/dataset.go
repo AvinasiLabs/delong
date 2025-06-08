@@ -248,6 +248,7 @@ func (dl *DatasetLoader) MustInit() error {
 // AcquireCurrent returns the path to the current version of a dataset and the version string
 func (dl *DatasetLoader) AcquireCurrent(dataset string) (string, string, error) {
 	if strings.HasPrefix(dataset, consts.StaticDatasetPrefix) {
+		log.Printf("Acquiring static dataset: %v", dataset)
 		return dl.acquireStaticDataset(dataset)
 	}
 
@@ -284,26 +285,33 @@ func (dl *DatasetLoader) acquireStaticDataset(dataset string) (string, string, e
 
 	// Check if already downloaded and cached
 	versionPath := filepath.Join(dl.storageRoot, version)
-	filePath := filepath.Join(versionPath, fmt.Sprintf("%v.csv", staticDataset.Name)) // Remove leading "/"
+	filePath := filepath.Join(versionPath, fmt.Sprintf("%v.csv", staticDataset.Name))
 
 	// Check if directory and file both exist
-	if _, err := os.Stat(versionPath); err == nil {
-		if _, err := os.Stat(filePath); err == nil {
-			log.Printf("Dataset already cached at %s", versionPath)
-			// Both directory and file exist
-			dl.rm.Lock()
-			defer dl.rm.Unlock()
-			_, ok := dl.refCounts[version]
-			if !ok {
-				dl.refCounts[version] = &MountVersionRef{RefCount: 1}
-			} else {
-				dl.refCounts[version].RefCount++
-			}
-			return versionPath, version, nil
-		}
+	_, err = os.Stat(filePath)
+	if err != nil && !os.IsNotExist(err) {
+		// Unknown error
+		return "", "", fmt.Errorf("failed to check file status: %w", err)
 	}
 
+	// File is existed
+	if err == nil {
+		log.Printf("Dataset already cached at %s", filePath)
+		dl.rm.Lock()
+		defer dl.rm.Unlock()
+		_, ok := dl.refCounts[version]
+		if !ok {
+			dl.refCounts[version] = &MountVersionRef{RefCount: 1}
+		} else {
+			dl.refCounts[version].RefCount++
+		}
+		return versionPath, version, nil
+	}
+
+	// File is not existed
 	// Download and decrypt from IPFS
+	log.Printf("Dataset file %s does not exist, downloading...", filePath)
+
 	kc := tee.NewKeyContext(tee.KEYKIND_ENC_KEY, staticDataset.Author, consts.PurposeEncStaticDataset)
 	key, err := dl.keyVault.DeriveSymmetricKey(ctx, kc)
 	if err != nil {
@@ -316,13 +324,31 @@ func (dl *DatasetLoader) acquireStaticDataset(dataset string) (string, string, e
 	}
 
 	// Create directory structure
+	log.Printf("Creating directory structure: %s", versionPath)
 	if err := os.MkdirAll(versionPath, 0755); err != nil {
 		return "", "", fmt.Errorf("failed to create directory structure: %w", err)
 	}
 
+	// Check directory existence
+	if _, err := os.Stat(versionPath); err != nil {
+		return "", "", fmt.Errorf("directory creation failed, path %s does not exist: %w", versionPath, err)
+	}
+	log.Printf("Directory structure %v created successfully", versionPath)
+
 	// Write decrypted data to file
+	log.Printf("Writing decrypted data to: %s", filePath)
 	if err := os.WriteFile(filePath, decryptedData, 0644); err != nil {
 		return "", "", fmt.Errorf("failed to write decrypted data: %w", err)
+	}
+
+	// Check file existence
+	if _, err := os.Stat(filePath); err != nil {
+		return "", "", fmt.Errorf("file creation failed, path %s does not exist: %w", filePath, err)
+	}
+
+	// Check directory existence after file creation
+	if _, err := os.Stat(versionPath); err != nil {
+		return "", "", fmt.Errorf("directory disappeared after file creation: %w", err)
 	}
 
 	// Update reference count

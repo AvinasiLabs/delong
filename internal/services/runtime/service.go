@@ -195,6 +195,7 @@ func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 
 	// Verify Dockerfile exists
 	if _, err := os.Stat(filepath.Join(workDir, "Dockerfile")); os.IsNotExist(err) {
+		log.Println("Dockerfile not found in algorithm directory")
 		return
 	}
 
@@ -203,8 +204,7 @@ func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 	log.Printf("Building image %s", imageName)
 	err = s.AlgoScheduler.BuildImage(ctx, workDir, imageName)
 	if err != nil {
-		// log.Printf("Failed to build image: %v", err)
-		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Image build failed")
+		log.Printf("Failed to build image: %v", err)
 		return
 	}
 
@@ -212,7 +212,6 @@ func (s *RuntimeService) OnRun(ctx context.Context, exeId uint) {
 	path, version, err := s.Loader.AcquireCurrent(execution.UsedDataset)
 	if err != nil {
 		log.Printf("Failed to acquire current dataset:%v", err)
-		// models.UpdateExecutionStatus(s.Db, execution.ID, models.EXE_STATUS_FAILED, "Failed to acquire dataset")
 		return
 	}
 	log.Printf("DEBUG: Acquired dataset path=%s, version=%s", path, version)
