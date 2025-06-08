@@ -148,7 +148,7 @@ func (s *RuntimeService) OnResolve(ctx context.Context, exeId uint, algoCid stri
 	}
 	select {
 	case <-time.After(delay):
-		log.Printf("Should resolve at %v, actually resolve at %v", resolveAt, time.Now().Unix())
+		log.Printf("Should resolve at %v, actually resolve at %v", resolveAt.Format(time.RFC3339), time.Now().UTC().Format(time.RFC3339))
 		tx, err := s.CtrCaller.Resolve(ctx, algoCid, exeId)
 		if err != nil {
 			log.Printf("Resolve failed for algo %v: %v", algoCid, err)
