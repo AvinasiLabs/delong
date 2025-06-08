@@ -85,6 +85,7 @@ func (s *ChainsyncService) listenDataRegistered(ctx context.Context) {
 		func(evt *contracts.DataContributionDataRegistered) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
 
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
@@ -143,6 +144,7 @@ func (s *ChainsyncService) listenAlgoSubmitted(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewExecutionSubmitted) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
 
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
@@ -217,6 +219,8 @@ func (s *ChainsyncService) listenVoteCasted(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewVoteCasted) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
+
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
 				log.Printf("Receipt fetch failed: %v", err)
@@ -297,6 +301,7 @@ func (s *ChainsyncService) listenCommitteeMemberUpdated(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewCommitteeMemberUpdated) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
 
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
@@ -354,6 +359,7 @@ func (s *ChainsyncService) listenAlgoResolved(ctx context.Context) {
 		func(evt *contracts.AlgorithmReviewAlgorithmResolved) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
 
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
@@ -431,6 +437,7 @@ func (s *ChainsyncService) listenDataUsed(ctx context.Context) {
 		func(evt *contracts.DataContributionDataUsed) {
 			txHash := evt.Raw.TxHash.Hex()
 			log.Printf("Received event tx=%s", txHash)
+			log.Printf("Received event data: %+v", evt)
 
 			receipt, err := s.CtrCaller.HttpClient().TransactionReceipt(ctx, evt.Raw.TxHash)
 			if err != nil {
