@@ -87,6 +87,8 @@ services:
     build:
       context: ../../
       dockerfile: deploy/docker/Dockerfile.test
+    env_file:
+      - .env
     environment:
       - DSTACK_CLIENT_TYPE=dstack
       - IPFS_ADDR=/dns/ipfs/tcp/5001
