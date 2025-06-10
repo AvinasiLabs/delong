@@ -71,13 +71,13 @@ jobs:
           cd deploy/docker
 
           echo "=== Starting services ==="
-          docker compose up -d --wait
+          docker compose -f docker-compose.local.yml up -d --wait
 
           echo "=== Docker containers status ==="
-          docker compose ps
+          docker compose -f docker-compose.local.yml ps
 
           echo "=== Running tests in container ==="
-          docker compose run --rm test-runner
+          docker compose -f docker-compose.local.yml run --rm test-runner
 
           echo "=== Cleaning up ==="
-          docker compose down -v
+          docker compose -f docker-compose.local.yml down -v
