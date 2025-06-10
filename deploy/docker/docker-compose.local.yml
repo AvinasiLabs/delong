@@ -5,7 +5,7 @@ services:
       MYSQL_ROOT_PASSWORD: delong_test_2025
       MYSQL_DATABASE: delong
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
@@ -16,7 +16,7 @@ services:
   ipfs:
     image: ipfs/kubo:latest
     volumes:
-      - ./data/ipfs:/root/.ipfs
+      - ipfs_data:/root/.ipfs
     expose:
       - "5001"
       - "8080"
@@ -30,7 +30,7 @@ services:
     expose:
       - "8090"
     volumes:
-      - ./data/simulator:/app/sockets
+      - simulator_sockets:/app/sockets
 
   delong:
     image: lilhammer/delong:latest
@@ -45,14 +45,14 @@ services:
       - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
       - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
       - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
-      - USE_JWT=true
-      - JWT_SECRET=${JWT_SECRET}
+      - USE_JWT=false
+      - JWT_SECRET=not_required
       - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
       - DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008
     volumes:
-      - ./data/delong_dataset:/data/delong_dataset
+      - /data/delong_dataset:/data/delong_dataset
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data/simulator:/app/sockets
+      - simulator_socket:/app/sockets
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -107,7 +107,7 @@ services:
     volumes:
       - ../../:/app
       - go_mod_cache:/go/pkg/mod
-      - ./data/simulator:/app/sockets
+      - simulator_sockets:/app/sockets
     working_dir: /app
     depends_on:
       mysql:
@@ -122,4 +122,7 @@ services:
         condition: service_healthy
 
 volumes:
+  mysql_data:
+  ipfs_data:
+  simulator_sockets:
   go_mod_cache:
