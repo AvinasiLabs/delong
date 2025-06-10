@@ -52,7 +52,7 @@ services:
     volumes:
       - /data/delong_dataset:/data/delong_dataset
       - /var/run/docker.sock:/var/run/docker.sock
-      - simulator_socket:/app/sockets
+      - simulator_sockets:/app/sockets
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
