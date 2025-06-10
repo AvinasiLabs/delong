@@ -82,3 +82,42 @@ services:
       timeout: 10s
       retries: 3
       interval: 30s
+
+  test-runner:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.test
+    environment:
+      - DSTACK_CLIENT_TYPE=dstack
+      - IPFS_ADDR=/dns/ipfs/tcp/5001
+      - ETH_HTTP_URL=${ETH_HTTP_URL}
+      - ETH_WS_URL=${ETH_WS_URL}
+      - CHAIN_ID=11155111
+      - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
+      - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
+      - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
+      - USE_JWT=false
+      - JWT_SECRET=not_required
+      - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
+      - DIAGNOSTIC_SRV_ADDR=http://localhost:8008
+      - TEST_BASE_URL=http://delong:8080/api
+      - TEST_WS_URL=ws://delong:8080/ws
+    volumes:
+      - ../../:/app
+      - go_mod_cache:/go/pkg/mod
+      - ./data/simulator:/app/sockets
+    working_dir: /app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+      delong-datapipe:
+        condition: service_healthy
+      dstack-simulator:
+        condition: service_started
+      delong:
+        condition: service_healthy
+
+volumes:
+  go_mod_cache:

@@ -44,7 +44,7 @@ func main() {
 		log.Fatalf("Failed to auto migrate database: %v", err)
 	}
 
-	keyVault := tee.NewKeyVaultFromConfig(config.DstackClientType)
+	keyVault := tee.NewKeyVaultFromConfig(tee.ClientKind(config.DstackClientType))
 
 	fundingPrivKey, err := crypto.HexToECDSA(config.OfficialAccountPrivateKey)
 	if err != nil {

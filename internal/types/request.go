@@ -3,9 +3,9 @@ package types
 import "time"
 
 type UploadReportReq struct {
-	UserWallet string    `form:"userWallet" binding:"required,ethwallet"` // hex
+	UserWallet string    `form:"user_wallet" binding:"required,ethwallet"` // hex
 	Dataset    string    `form:"dataset" binding:"required"`
-	TestTime   time.Time `form:"testTime" binding:"required"`
+	TestTime   time.Time `form:"test_time" binding:"required"`
 }
 
 type SubmitAlgoExeReq struct {

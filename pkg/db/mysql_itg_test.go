@@ -1,16 +1,27 @@
+//go:build integration
+// +build integration
+
 package db
 
 import (
+	"delong/internal"
 	"testing"
 )
 
 func TestNewMysqlDb(t *testing.T) {
-	dsn := "root:root123@tcp(localhost:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local"
+	config, err := internal.LoadConfigFromEnv()
+	if err != nil {
+		t.Fatalf("failed to load config from env: %v", err)
+	}
 
-	db, err := NewMysqlDb(dsn)
+	db, err := NewMysqlDb(config.MysqlDsn)
 	if err != nil {
 		t.Fatalf("failed to connect to MySQL: %v", err)
 	}
+	defer func() {
+		sqlDb, _ := db.DB()
+		sqlDb.Close()
+	}()
 
 	sqlDB, err := db.DB()
 	if err != nil {

@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package api
 
 import (
@@ -132,7 +135,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	keyVault := tee.NewKeyVaultFromConfig(config.DstackClientType)
+	keyVault := tee.NewKeyVaultFromConfig(tee.ClientKind(config.DstackClientType))
 	ethAcc, err := keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		t.Fatal(err)

@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package db
 
 import (
@@ -322,40 +325,40 @@ func generateTestData(size int) []byte {
 }
 
 // Benchmark tests
-func BenchmarkIPFSEncryptDecrypt(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark in short mode")
-	}
+// func BenchmarkIPFSEncryptDecrypt(b *testing.B) {
+// 	if testing.Short() {
+// 		b.Skip("Skipping benchmark in short mode")
+// 	}
 
-	config, err := internal.LoadConfigFromEnv()
-	if err != nil {
-		b.Skip("Failed to load config from environment")
-	}
+// 	config, err := internal.LoadConfigFromEnv()
+// 	if err != nil {
+// 		b.Skip("Failed to load config from environment")
+// 	}
 
-	ipfsStore, err := NewIpfsStore(config.IpfsApiAddr)
-	if err != nil {
-		b.Skip("Failed to create IPFS store")
-	}
+// 	ipfsStore, err := NewIpfsStore(config.IpfsApiAddr)
+// 	if err != nil {
+// 		b.Skip("Failed to create IPFS store")
+// 	}
 
-	ctx := context.Background()
-	testData := generateTestData(1024) // 1KB test data
-	key := make([]byte, 32)
-	rand.Read(key)
+// 	ctx := context.Background()
+// 	testData := generateTestData(1024) // 1KB test data
+// 	key := make([]byte, 32)
+// 	rand.Read(key)
 
-	b.ResetTimer()
+// 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		// Upload
-		reader := bytes.NewReader(testData)
-		cid, err := ipfsStore.UploadEncryptedStream(ctx, reader, key)
-		if err != nil {
-			b.Fatalf("Upload failed: %v", err)
-		}
+// 	for i := 0; i < b.N; i++ {
+// 		// Upload
+// 		reader := bytes.NewReader(testData)
+// 		cid, err := ipfsStore.UploadEncryptedStream(ctx, reader, key)
+// 		if err != nil {
+// 			b.Fatalf("Upload failed: %v", err)
+// 		}
 
-		// Download
-		_, err = ipfsStore.DownloadDecrypted(ctx, cid, key)
-		if err != nil {
-			b.Fatalf("Download failed: %v", err)
-		}
-	}
-}
+// 		// Download
+// 		_, err = ipfsStore.DownloadDecrypted(ctx, cid, key)
+// 		if err != nil {
+// 			b.Fatalf("Download failed: %v", err)
+// 		}
+// 	}
+// }

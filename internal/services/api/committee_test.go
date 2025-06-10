@@ -1,8 +1,10 @@
+//go:build integration
+// +build integration
+
 package api
 
 import (
 	"bytes"
-	"context"
 	"delong/internal/models"
 	"delong/internal/types"
 	"delong/pkg/bizcode"
@@ -14,45 +16,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
-const TEST_BASE_URL = "http://localhost:8080/api"
-const TEST_WS_URL = "ws://localhost:8080/ws"
 const TEST_MEMEBR_WALLET = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
-
-func waitForWsConfirmation(t *testing.T, txHash string, timeout time.Duration) []byte {
-	wsURL := TEST_WS_URL + "?task_id=" + txHash
-	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("WebSocket connection failed: %v", err)
-	}
-	defer conn.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	ch := make(chan []byte, 1)
-	go func() {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			t.Logf("WebSocket read error: %v", err)
-			close(ch)
-			return
-		}
-		ch <- msg
-	}()
-
-	select {
-	case <-ctx.Done():
-		t.Fatalf("Timeout waiting for WebSocket tx confirmation for %s", txHash)
-		return nil
-	case msg := <-ch:
-		return msg
-	}
-}
 
 func setCommitteeMember(t *testing.T, wallet string, isApproved bool) {
 	body := types.SetCommitteeMemberReq{

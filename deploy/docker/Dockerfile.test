@@ -1,0 +1,18 @@
+FROM golang:1.24-alpine
+
+RUN apk add --no-cache \
+    git \
+    gcc \
+    musl-dev \
+    curl \
+    bash
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+CMD ["go", "test", "-tags=integration", "-v", "./..."]

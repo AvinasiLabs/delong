@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package tee
 
 import (
@@ -8,7 +11,7 @@ import (
 
 func TestDeriveSymmetricKey(t *testing.T) {
 	ctx := context.Background()
-	keyVault := NewKeyVaultFromConfig("local")
+	keyVault := NewKeyVaultFromConfig(KindDstack)
 
 	kc := NewKeyContext(KEYKIND_ENC_KEY, "testuser", "encrypt_data")
 
@@ -25,7 +28,7 @@ func TestDeriveSymmetricKey(t *testing.T) {
 
 func TestDeriveEthereumAccount(t *testing.T) {
 	ctx := context.Background()
-	keyVault := NewKeyVaultFromConfig("local")
+	keyVault := NewKeyVaultFromConfig(KindDstack)
 
 	kc := NewKeyContext(KEYKIND_ETH_ACC, "testuser", "eth_identity")
 

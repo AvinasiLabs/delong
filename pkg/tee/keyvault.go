@@ -12,6 +12,13 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+type ClientKind string
+
+const (
+	KindDstack ClientKind = "dstack"
+	KindTappd  ClientKind = "tappd"
+)
+
 type EthereumAccount struct {
 	PrivateKey *ecdsa.PrivateKey
 	Address    string // hex string
@@ -32,12 +39,12 @@ func NewKeyVault(adapter IDstackClient) *KeyVault {
 }
 
 // NewKeyVaultFromConfig create KeyVault via config
-func NewKeyVaultFromConfig(clientType string) *KeyVault {
+func NewKeyVaultFromConfig(clientType ClientKind) *KeyVault {
 	var client IDstackClient
 	switch clientType {
-	case "dstack":
+	case KindDstack:
 		client = NewDstackClientAdapter()
-	case "tappd":
+	case KindTappd:
 		client = NewTappdClientAdapter()
 	default:
 		log.Fatalf("Unsupported dstack client type: %v", clientType)
