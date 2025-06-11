@@ -125,25 +125,3 @@ func hashSha256(rs io.ReadSeeker) (string, error) {
 
 	return hashStr, nil
 }
-
-// normalizeFileName converts a file name to a standardized format: lowercase with underscores.
-// Removes all spaces, converts to lowercase, and replaces spaces with underscores.
-// Example: "BLOOD TEST" -> "blood_test"
-func normalizeFileName(fileName string) (string, error) {
-	// Trim spaces first
-	cleaned := strings.TrimSpace(fileName)
-	if cleaned == "" {
-		return "", fmt.Errorf("fileName cannot be empty")
-	}
-
-	// Convert to lowercase
-	result := strings.ToLower(cleaned)
-
-	// Replace multiple consecutive spaces with single underscore
-	for strings.Contains(result, "  ") {
-		result = strings.ReplaceAll(result, "  ", " ")
-	}
-	result = strings.ReplaceAll(result, " ", "_")
-
-	return result, nil
-}

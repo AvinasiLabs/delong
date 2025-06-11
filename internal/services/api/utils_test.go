@@ -152,7 +152,7 @@ func TestNormalizeFileName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := normalizeFileName(tt.input)
+			result, err := normalizeStcDatasetName(tt.input, "")
 
 			if tt.expectError {
 				if err == nil {

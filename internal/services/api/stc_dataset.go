@@ -418,15 +418,14 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 	}
 
 	// Create static dataset
-	normName, err := normalizeFileName(req.Name)
+	normName, err := normalizeStcDatasetName(req.Name, consts.StaticDatasetPrefix)
 	if err != nil {
 		log.Printf("Failed to normalize name: %v", err)
 		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
 		return
 	}
-	stcDatasetName := fmt.Sprintf("%s%s", consts.StaticDatasetPrefix, normName)
 	createReq := models.CreateStcDatasetReq{
-		Name:         stcDatasetName, // Store with prefix
+		Name:         normName, // Store with prefix
 		UiName:       req.Name,
 		Desc:         req.Desc,
 		FileHash:     hash,
@@ -436,7 +435,7 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 		Author:       req.Author,
 		AuthorWallet: req.AuthorWallet,
 		SampleUrl:    sampleUrl,
-		FilePath:     fmt.Sprintf("/data/%s.csv", stcDatasetName),
+		FilePath:     fmt.Sprintf("/data/%s.csv", normName),
 	}
 
 	dataset, err := models.CreateStcDataset(dbtx, createReq)
@@ -522,4 +521,26 @@ func (r *StaticDatasetResource) SampleHandler(c *gin.Context) {
 	c.Header("Content-Type", "text/csv")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"sample_%s.csv\"", cid[:8]))
 	c.Data(200, "text/csv", data)
+}
+
+// normalizeStcDatasetName converts a file name to a standardized format: lowercase with underscores.
+// Removes all spaces, converts to lowercase, and replaces spaces with underscores.
+// Example: "BLOOD TEST" -> "__static__blood_test"
+func normalizeStcDatasetName(fileName, prefix string) (string, error) {
+	// Trim spaces first
+	cleaned := strings.TrimSpace(fileName)
+	if cleaned == "" {
+		return "", fmt.Errorf("fileName cannot be empty")
+	}
+
+	// Convert to lowercase
+	result := strings.ToLower(cleaned)
+
+	// Replace multiple consecutive spaces with single underscore
+	for strings.Contains(result, "  ") {
+		result = strings.ReplaceAll(result, "  ", " ")
+	}
+	result = strings.ReplaceAll(result, " ", "_")
+
+	return fmt.Sprintf("%s%s", prefix, result), nil
 }

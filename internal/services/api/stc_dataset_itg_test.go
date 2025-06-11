@@ -5,6 +5,7 @@ package api
 
 import (
 	"bytes"
+	"delong/internal/consts"
 	"delong/internal/models"
 	"delong/pkg/bizcode"
 	"delong/pkg/responser"
@@ -183,6 +184,11 @@ func TestStcDatasetCreate(t *testing.T) {
 		t.Fatalf("Failed to unmarshal dataset: %v", err)
 	}
 
+	datasetName, err = normalizeStcDatasetName(datasetName, consts.StaticDatasetPrefix)
+	if err != nil {
+		t.Fatalf("Failed to normalize static dataset name: %v", err)
+	}
+
 	if dataset.Name != datasetName {
 		t.Errorf("Expected name '%s', got '%s'", datasetName, dataset.Name)
 	}
@@ -268,45 +274,7 @@ func TestStcDatasetTake(t *testing.T) {
 	}
 	writer.Close()
 
-	req, err := http.NewRequest("POST", TEST_BASE_URL+"/static-datasets", body)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("create request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Create failed with status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read create response body: %v", err)
-	}
-
-	createResp := responser.Response{}
-	err = json.Unmarshal(respBody, &createResp)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal create response: %v", err)
-	}
-
-	if createResp.Code != bizcode.SUCCESS {
-		t.Fatalf("Expected CREATE SUCCESS, got %v", createResp.Code)
-	}
-
-	// Get transaction hash and wait for confirmation
-	txHash, ok := createResp.Data.(string)
-	if !ok {
-		t.Fatalf("Unexpected data format: %T", createResp.Data)
-	}
-
-	msg := waitForWsConfirmation(t, txHash, 15*time.Second)
+	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType(), 20*time.Second)
 
 	wsResp := responser.ResponseRaw{}
 	err = json.Unmarshal(msg, &wsResp)

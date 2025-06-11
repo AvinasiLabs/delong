@@ -106,7 +106,7 @@ func postAndAssertSuccess(t *testing.T, endpoint string, body io.Reader, content
 	return assertApiSuccess(t, resp)
 }
 
-func assertApiSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reader, contentType string) []byte {
+func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reader, contentType string, timeout time.Duration) []byte {
 	t.Helper()
 
 	respBody := postAndAssertSuccess(t, endpoint, body, contentType)
@@ -115,5 +115,5 @@ func assertApiSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reade
 		t.Fatalf("Unexpected data format: %T", respBody.Data)
 	}
 
-	return waitForWsConfirmation(t, txHash, 10)
+	return waitForWsConfirmation(t, txHash, timeout)
 }

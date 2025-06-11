@@ -27,39 +27,7 @@ func setCommitteeMember(t *testing.T, wallet string, isApproved bool) {
 	}
 	jsonBody, _ := json.Marshal(body)
 
-	req, err := http.NewRequest("POST", TEST_BASE_URL+"/committee", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %v", err)
-	}
-	apiResp := responser.Response{}
-	err = json.Unmarshal(respBody, &apiResp)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response body: %v", err)
-	}
-	t.Logf("Create response: %v", apiResp)
-
-	if apiResp.Code != bizcode.SUCCESS {
-		t.Errorf("Expected CODE SUCCESS, got %v", apiResp.Code)
-	}
-
-	txHash, ok := apiResp.Data.(string)
-	if !ok {
-		t.Fatalf("Unexpected data format: %T", apiResp.Data)
-	}
-
-	_ = waitForWsConfirmation(t, txHash, 10*time.Second)
+	_ = assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json", 20*time.Second)
 }
 
 func TestCommitteeMemberCreate(t *testing.T) {

@@ -34,7 +34,7 @@ const TEST_ALGO_CID = "Qmc2q2fMPuss3tLWVJgqEB7p98rB1Bnz7he6x5hXHRdUYg"
 
 func TestVoteCreate(t *testing.T) {
 	tx := vote(t, TEST_ALGO_CID, true)
-	msg := waitForWsConfirmation(t, tx.Hash().Hex(), 10*time.Second)
+	msg := waitForWsConfirmation(t, tx.Hash().Hex(), 20*time.Second)
 
 	var wsResp responser.ResponseRaw
 	if err := json.Unmarshal(msg, &wsResp); err != nil {
@@ -147,7 +147,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 	caller, err := contracts.NewContractCaller(
 		config.EthHttpUrl, config.EthWsUrl, config.ChainId,
 		keyVault,
-		fundingPrivKey, 0.005, 0.1,
+		fundingPrivKey, 0.005, 0.05,
 	)
 	mysqlDb, err := db.NewMysqlDb(config.MysqlDsn)
 	if err != nil {
