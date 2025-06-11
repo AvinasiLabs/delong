@@ -99,8 +99,7 @@ func (s *ApiService) Init(ctx context.Context) error {
 
 	stcDataset := &StaticDatasetResource{s.ApiServiceOptions}
 	rest.CRUD(apiGroup, "/static-datasets", stcDataset)
-	s.engine.GET("/sample/:cid", stcDataset.SampleHandler)
-	// apiGroup.GET("/sample/:cid", stcDataset.SampleHandler)
+	s.engine.GET("/api/sample/:cid", stcDataset.SampleHandler)
 
 	return nil
 }
