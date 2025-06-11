@@ -18,14 +18,14 @@ import (
 )
 
 const (
-	TEST_ALGO_LINK        = "https://codeload.github.com/lilhammer111/algo-demo/tar.gz/c73e8d62a0ae5d68040cabb461c7b51b7630020c"
 	TEST_SCIENTIST_WALLET = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
 	TEST_DATASET_NAME     = "test-1747851424415680000"
 )
 
 func TestAlgoExeCreateAndTake(t *testing.T) {
 	req := types.SubmitAlgoExeReq{
-		AlgoLink:        TEST_ALGO_LINK,
+		GithubRepo:      "https://github.com/lilhammer111/algo-demo",
+		CommitHash:      "c73e8d62a0ae5d68040cabb461c7b51b7630020c",
 		ScientistWallet: TEST_SCIENTIST_WALLET,
 		Dataset:         TEST_DATASET_NAME,
 	}

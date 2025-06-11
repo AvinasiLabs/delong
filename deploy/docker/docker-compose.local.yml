@@ -50,7 +50,7 @@ services:
       - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
       - DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008
     volumes:
-      - /data/delong_dataset:/data/delong_dataset
+      - delong_dataset:/data/delong_dataset
       - /var/run/docker.sock:/var/run/docker.sock
       - simulator_sockets:/app/sockets
     extra_hosts:
@@ -107,6 +107,7 @@ services:
     volumes:
       - ../../:/app
       - go_mod_cache:/go/pkg/mod
+      - /var/run/docker.sock:/var/run/docker.sock
       - simulator_sockets:/app/sockets
     working_dir: /app
     depends_on:
@@ -125,4 +126,5 @@ volumes:
   mysql_data:
   ipfs_data:
   simulator_sockets:
+  delong_dataset:
   go_mod_cache:

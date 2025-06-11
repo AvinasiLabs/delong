@@ -424,8 +424,9 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
 		return
 	}
+	stcDatasetName := fmt.Sprintf("%s%s", consts.StaticDatasetPrefix, normName)
 	createReq := models.CreateStcDatasetReq{
-		Name:         fmt.Sprintf("%s%s", consts.StaticDatasetPrefix, normName), // Store with prefix
+		Name:         stcDatasetName, // Store with prefix
 		UiName:       req.Name,
 		Desc:         req.Desc,
 		FileHash:     hash,
@@ -435,7 +436,7 @@ func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 		Author:       req.Author,
 		AuthorWallet: req.AuthorWallet,
 		SampleUrl:    sampleUrl,
-		FilePath:     fmt.Sprintf("/data/%s.csv", normName),
+		FilePath:     fmt.Sprintf("/data/%s.csv", stcDatasetName),
 	}
 
 	dataset, err := models.CreateStcDataset(dbtx, createReq)
