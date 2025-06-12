@@ -239,19 +239,19 @@ func TestIPFSEncryptDecryptWrongKey(t *testing.T) {
 	}
 
 	// This should fail
-	downloadedData, err := ipfsStore.DownloadDecrypted(ctx, cid, wrongKey)
-	if err != nil {
-		t.Fatalf("Failed to download and decrypted data: %v", err)
-		// t.Error("Expected decryption to fail with wrong key, but it succeeded")
+	_, err = ipfsStore.DownloadDecrypted(ctx, cid, wrongKey)
+	if err == nil {
+		// t.Fatalf("Failed to download and decrypted data: %v", err)
+		t.Error("Expected decryption to fail with wrong key, but it succeeded")
 	}
 
-	if !bytes.Equal(downloadedData, originalData) {
-		t.Errorf(
-			"Expected decryption to fail with wrong key, but it succeeded, originalData=%s, downloadedData=%s",
-			string(originalData),
-			string(downloadedData),
-		)
-	}
+	// if !bytes.Equal(downloadedData, originalData) {
+	// 	t.Errorf(
+	// 	"Expected decryption to fail with wrong key, but it succeeded, originalData=%s, downloadedData=%s",
+	// 	string(originalData),
+	// 	string(downloadedData),
+	// )
+	// 	}
 }
 
 func TestIPFSPlaintextUploadDownload(t *testing.T) {

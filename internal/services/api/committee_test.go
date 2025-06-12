@@ -80,34 +80,7 @@ func TestCommitteeMemberTake(t *testing.T) {
 		t.Fatalf("Failed to marshal body: %v", err)
 	}
 
-	resp, err := http.Post(TEST_BASE_URL+"/committee", "application/json", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		t.Fatalf("Failed to create committee member: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Create failed with status: %d", resp.StatusCode)
-	}
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %v", err)
-	}
-	apiResp := responser.Response{}
-	err = json.Unmarshal(respBody, &apiResp)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal resp body: %v", err)
-	}
-	if apiResp.Code != bizcode.SUCCESS {
-		t.Fatalf("Expected CODE SUCCESS, got %v", apiResp.Code)
-	}
-
-	// Send ws request by specific txHash
-	txHash, ok := apiResp.Data.(string)
-	if !ok {
-		t.Fatalf("Unexpected data format: %T", apiResp.Data)
-	}
-
-	msg := waitForWsConfirmation(t, txHash, 10*time.Second)
+	msg := assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json", 1*time.Minute)
 	t.Logf("Received msg: %v", string(msg))
 
 	wsResp := responser.ResponseRaw{}
@@ -116,7 +89,7 @@ func TestCommitteeMemberTake(t *testing.T) {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 	if wsResp.Code != bizcode.SUCCESS {
-		t.Fatalf("Expected CODE SUCCESS, got %v", apiResp.Code)
+		t.Fatalf("Expected CODE SUCCESS, got %v", wsResp.Code)
 	}
 
 	var tx models.BlockchainTransaction

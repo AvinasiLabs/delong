@@ -93,40 +93,7 @@ func TestStcDatasetCreate(t *testing.T) {
 	}
 	writer.Close()
 
-	req, err := http.NewRequest("POST", TEST_BASE_URL+"/static-datasets", body)
-	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	apiResp := &responser.Response{}
-	json.Unmarshal(respBody, apiResp)
-	if apiResp.Code != bizcode.SUCCESS {
-		t.Errorf("Failed to create static dataset, code=%v", apiResp.Code)
-	}
-
-	// Get transaction hash from response
-	txHash, ok := apiResp.Data.(string)
-	if !ok {
-		t.Fatalf("Unexpected data format: %T", apiResp.Data)
-	}
-
-	t.Logf("Got transaction hash: %s", txHash)
-
-	// Wait for WebSocket confirmation
-	msg := waitForWsConfirmation(t, txHash, 15*time.Second)
-	t.Logf("Received WebSocket message: %s", string(msg))
+	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
 
 	wsResp := responser.ResponseRaw{}
 	err = json.Unmarshal(msg, &wsResp)
@@ -336,6 +303,12 @@ func TestStcDatasetTake(t *testing.T) {
 	if retrievedDataset.ID != uint64(datasetId) {
 		t.Errorf("Expected ID %d, got %d", datasetId, retrievedDataset.ID)
 	}
+
+	datasetName, err = normalizeStcDatasetName(datasetName, consts.StaticDatasetPrefix)
+	if err != nil {
+		t.Fatalf("Failed to normalize dataset name: %v", err)
+	}
+
 	if retrievedDataset.Name != datasetName {
 		t.Errorf("Expected name '%s', got '%s'", datasetName, retrievedDataset.Name)
 	}
@@ -562,10 +535,10 @@ func TestStcDatasetSampleGeneration(t *testing.T) {
 		}
 
 		// Test accessing the sample data through the API endpoint
-		fullUrl := "http://localhost:8080" + dataset.SampleUrl
+		fullUrl := TEST_BASE_URL + dataset.SampleUrl
 		sampleResp, err := http.Get(fullUrl)
 		if err != nil {
-			t.Logf("Warning: Could not fetch sample data from API: %v", err)
+			t.Fatalf("Failed to fetch sample data from API, err=%v, fullUrl=%s", err, fullUrl)
 		} else {
 			defer sampleResp.Body.Close()
 			if sampleResp.StatusCode == http.StatusOK {

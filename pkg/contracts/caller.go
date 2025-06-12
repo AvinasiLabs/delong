@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"delong/internal/models"
 	"delong/pkg/tee"
+	"errors"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -43,6 +45,9 @@ type ContractCaller struct {
 
 func NewContractCaller(httpUrl, wsUrl string, chainId int64, keyVault *tee.KeyVault,
 	fundingPrivKey *ecdsa.PrivateKey, thresholdEth, topUpEth float64) (*ContractCaller, error) {
+	if keyVault == nil {
+		return nil, errors.New("key vault is nil")
+	}
 	httpClient, err := ethclient.Dial(httpUrl)
 	if err != nil {
 		return nil, err
@@ -109,10 +114,11 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 	if err != nil {
 		return err
 	}
-	log.Printf("Balance of tee eth account %v is %s", toAddr, WeiToEthString(balanceWei))
+	log.Printf("The balance of account %v is %s", toAddr, WeiToEthString(balanceWei))
 
 	thresholdWei := EthToWei(c.thresholdEth)
 	if balanceWei.Cmp(thresholdWei) >= 0 {
+		log.Printf("Account %v has sufficient balance", toAddr)
 		return nil // balance is sufficient
 	}
 
@@ -149,6 +155,17 @@ func (c *ContractCaller) EnsureWalletFunded(ctx context.Context, toFund string) 
 	if err != nil {
 		log.Printf("Failed to send transaction: %v", err)
 		return err
+	}
+
+	receipt, err := bind.WaitMined(ctx, c.httpClient, signedTx)
+	if err != nil {
+		log.Printf("Failed to wait for transaction to be mined: %v", err)
+		return err
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		log.Printf("Transaction failed with status 0: %s", signedTx.Hash().Hex())
+		return fmt.Errorf("funding transaction failed")
 	}
 
 	finalBalance, err := c.httpClient.BalanceAt(ctx, toAddr, nil)

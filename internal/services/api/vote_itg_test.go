@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"delong/internal"
 	"delong/internal/models"
 	"delong/internal/types"
@@ -16,10 +17,10 @@ import (
 	"delong/pkg/responser"
 	"delong/pkg/tee"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"math/big"
-	"math/rand"
 	"net/http"
 	"testing"
 	"time"
@@ -28,9 +29,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mr-tron/base58"
 )
 
-const TEST_ALGO_CID = "Qmc2q2fMPuss3tLWVJgqEB7p98rB1Bnz7he6x5hXHRdUYg"
+var TEST_ALGO_CID = generateRandomCID()
 
 func TestVoteCreate(t *testing.T) {
 	tx := vote(t, TEST_ALGO_CID, true)
@@ -78,7 +80,7 @@ func TestVoteList(t *testing.T) {
 }
 
 func TestVoteSetVotingDuration(t *testing.T) {
-	duration := rand.Intn(290) + 10
+	duration := 3600
 
 	req := types.SetVotingDurationReq{
 		Duration: int64(duration),
@@ -135,7 +137,12 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
+	t.Logf("DstackClientType: %v", config.DstackClientType)
 	keyVault := tee.NewKeyVaultFromConfig(tee.ClientKind(config.DstackClientType))
+	if keyVault == nil {
+		t.Fatal("Failed to create key vault")
+	}
+
 	ethAcc, err := keyVault.DeriveEthereumAccount(ctx, tee.KeyCtxTEEContractOwner)
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +154,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 	caller, err := contracts.NewContractCaller(
 		config.EthHttpUrl, config.EthWsUrl, config.ChainId,
 		keyVault,
-		fundingPrivKey, 0.005, 0.05,
+		fundingPrivKey, 0.005, 0.01,
 	)
 	mysqlDb, err := db.NewMysqlDb(config.MysqlDsn)
 	if err != nil {
@@ -160,7 +167,7 @@ func voteTestSetup(t *testing.T) (*contracts.ContractCaller, *contracts.Algorith
 
 	err = caller.EnsureWalletFunded(ctx, ethAcc.Address)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to fund wallet: %v", err)
 	}
 
 	ctrt, err := contracts.NewAlgorithmReview(caller.AlgoReviewCtrtAddr(), caller.HttpClient())
@@ -183,8 +190,34 @@ func createFundedTempAccount(t *testing.T, ctrt *contracts.ContractCaller) (*ecd
 	return privKey, address
 }
 
+// generateRandomCID generates a random IPFS CID-like string for testing
+func generateRandomCID() string {
+	// Generate 32 random bytes
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate random bytes: %v", err))
+	}
+
+	// Encode to base58 and add "Qm" prefix to make it look like a real CID
+	encoded := base58.Encode(randomBytes)
+	return "Qm" + encoded[:44] // Trim to typical CID length
+}
+
 func vote(t *testing.T, cid string, isApproved bool) *ethtypes.Transaction {
 	caller, ctrt, config := voteTestSetup(t)
+	// Ensure algo submitted
+	scientistAddr := common.HexToAddress("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720")
+	executionId := uint(time.Now().UnixNano())
+	dataset := "test-dataset"
+
+	tx, err := caller.SubmitAlgorithm(t.Context(), executionId, scientistAddr, cid, dataset)
+	if err != nil {
+		t.Fatalf("Failed to submit algo: %v", err)
+	}
+
+	t.Logf("Submitted algorithm %s with tx: %s", cid, tx.Hash().Hex())
+
 	tmpAccountPrivKey, tmpAccountAddress := createFundedTempAccount(t, caller)
 	// Appoint the tee eth account as a member of the committee
 	setCommitteeMember(t, tmpAccountAddress.Hex(), true)
@@ -194,7 +227,7 @@ func vote(t *testing.T, cid string, isApproved bool) *ethtypes.Transaction {
 		t.Fatal(err)
 	}
 
-	tx, err := ctrt.Vote(txOpts, cid, isApproved)
+	tx, err = ctrt.Vote(txOpts, cid, isApproved)
 	if err != nil {
 		t.Fatal(err)
 	}
