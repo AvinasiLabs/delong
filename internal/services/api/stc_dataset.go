@@ -497,7 +497,14 @@ func (r *StaticDatasetResource) UpdateHandler(c *gin.Context) {
 		return
 	}
 
-	dataset, err := models.UpdateStcDataset(r.MysqlDb, id, req.Name, req.Desc)
+	datasetName, err := normalizeStcDatasetName(req.Name, consts.StaticDatasetPrefix)
+	if err != nil {
+		log.Printf("Failed to normalize name: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+
+	dataset, err := models.UpdateStcDataset(r.MysqlDb, id, req.Name, datasetName, req.Desc)
 	if err != nil {
 		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
 		return

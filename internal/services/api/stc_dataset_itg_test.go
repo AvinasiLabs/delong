@@ -646,8 +646,17 @@ func TestStcDatasetUpdate(t *testing.T) {
 		t.Errorf("Expected ID %d, got %d", datasetId, updatedDataset.ID)
 	}
 
-	if updatedDataset.Name != updatedName {
-		t.Errorf("Expected Name '%s', got '%s'", updatedName, updatedDataset.Name)
+	datasetName, err := normalizeStcDatasetName(updatedName, consts.StaticDatasetPrefix)
+	if err != nil {
+		t.Fatalf("Failed to normalize dataset name: %v", err)
+	}
+
+	if updatedDataset.Name != datasetName {
+		t.Errorf("Expected name '%s', got '%s'", datasetName, updatedDataset.Name)
+	}
+
+	if updatedDataset.UiName != updatedName {
+		t.Errorf("Expected UiName '%s', got '%s'", updatedName, updatedDataset.UiName)
 	}
 
 	if updatedDataset.Desc != updatedDesc {
@@ -678,8 +687,17 @@ func TestStcDatasetUpdate(t *testing.T) {
 	}
 
 	// Final verification that the changes persisted
-	if fetchedDataset.Name != updatedName {
-		t.Errorf("Expected persisted name '%s', got '%s'", updatedName, fetchedDataset.Name)
+	datasetName, err = normalizeStcDatasetName(updatedName, consts.StaticDatasetPrefix)
+	if err != nil {
+		t.Fatalf("Failed to normalize dataset name: %v", err)
+	}
+
+	if updatedDataset.Name != datasetName {
+		t.Errorf("Expected name '%s', got '%s'", datasetName, updatedDataset.Name)
+	}
+
+	if fetchedDataset.UiName != updatedName {
+		t.Errorf("Expected persisted name '%s', got '%s'", updatedName, fetchedDataset.UiName)
 	}
 
 	if fetchedDataset.Desc != updatedDesc {

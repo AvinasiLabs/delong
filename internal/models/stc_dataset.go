@@ -122,10 +122,11 @@ func GetStcDatasetByName(db *gorm.DB, name string) (*StaticDataset, error) {
 	return &dataset, err
 }
 
-func UpdateStcDataset(db *gorm.DB, id uint, name, desc string) (*StaticDataset, error) {
+func UpdateStcDataset(db *gorm.DB, id uint, uiName, name, desc string) (*StaticDataset, error) {
 	updates := map[string]any{
-		"name": name,
-		"desc": desc,
+		"ui_name": uiName,
+		"name":    name,
+		"desc":    desc,
 	}
 	err := db.Model(&StaticDataset{}).
 		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
