@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"delong/internal/models"
 	"delong/pkg/bizcode"
 	"delong/pkg/responser"
 	"encoding/json"
@@ -106,6 +107,28 @@ func postAndAssertSuccess(t *testing.T, endpoint string, body io.Reader, content
 	return assertApiSuccess(t, resp)
 }
 
+func requestAndAssertSuccess(t *testing.T, method string, endpoint string, body io.Reader, contentType string) *responser.Response {
+	t.Helper()
+
+	url := TEST_BASE_URL + endpoint
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return assertApiSuccess(t, resp)
+}
+
 func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reader, contentType string, timeout time.Duration) []byte {
 	t.Helper()
 
@@ -116,4 +139,38 @@ func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Read
 	}
 
 	return waitForWsConfirmation(t, txHash, timeout)
+}
+
+func requestAssertSuccessAndGetEntityId(t *testing.T, method string, endpoint string, body io.Reader, contentType string, timeout time.Duration) uint {
+	t.Helper()
+	respBody := requestAndAssertSuccess(t, method, endpoint, body, contentType)
+	txHash, ok := respBody.Data.(string)
+	if !ok {
+		t.Fatalf("Unexpected data format: %T", respBody.Data)
+	}
+
+	msg := waitForWsConfirmation(t, txHash, timeout)
+
+	wsResp := responser.ResponseRaw{}
+	err := json.Unmarshal(msg, &wsResp)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal WebSocket response: %v", err)
+	}
+
+	if wsResp.Code != bizcode.SUCCESS {
+		t.Fatalf("Expected WebSocket SUCCESS, got %v", wsResp.Code)
+	}
+
+	var tx models.BlockchainTransaction
+	err = json.Unmarshal(wsResp.Data, &tx)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal transaction: %v", err)
+	}
+
+	if tx.Status != models.TX_STATUS_CONFIRMED {
+		t.Fatalf("Expected transaction status %v, got %v", models.TX_STATUS_CONFIRMED, tx.Status)
+	}
+
+	t.Logf("Entity Id: %v", tx.EntityID)
+	return tx.EntityID
 }

@@ -4,8 +4,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: delong_test_2025
       MYSQL_DATABASE: delong
-    volumes:
-      - mysql_data:/var/lib/mysql
+    tmpfs:
+      - /var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
@@ -13,10 +13,24 @@ services:
       timeout: 10s
       retries: 3
 
+  anvil:
+    image: aztecprotocol/foundry:25f24e677a6a32a62512ad4f561995589ac2c7dc
+    command:
+      ["anvil", "--host", "0.0.0.0", "--port", "8545", "--chain-id", "31337"]
+    tmpfs:
+      - /data/anvil
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      timeout: 10s
+      retries: 3
+
   ipfs:
     image: ipfs/kubo:latest
-    volumes:
-      - ipfs_data:/root/.ipfs
+    tmpfs:
+      - /root/.ipfs
     expose:
       - "5001"
       - "8080"
@@ -33,22 +47,24 @@ services:
       - simulator_sockets:/app/sockets
 
   delong:
-    image: lilhammer/delong:latest
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile
     env_file:
       - .env
     environment:
-      - DSTACK_CLIENT_TYPE=dstack
-      - IPFS_ADDR=/dns/ipfs/tcp/5001
+      - DSTACK_CLIENT_TYPE=${DSTACK_CLIENT_TYPE}
+      - IPFS_ADDR=${IPFS_ADDR}
       - ETH_HTTP_URL=${ETH_HTTP_URL}
       - ETH_WS_URL=${ETH_WS_URL}
-      - CHAIN_ID=11155111
-      - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
-      - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
+      - CHAIN_ID=${CHAIN_ID}
+      - MYSQL_DSN=${MYSQL_DSN}
+      - DSTACK_SIMULATOR_ENDPOINT=${DSTACK_SIMULATOR_ENDPOINT}
       - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
-      - USE_JWT=false
-      - JWT_SECRET=not_required
-      - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
-      - DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008
+      - USE_JWT=${USE_JWT}
+      - JWT_SECRET=${JWT_SECRET}
+      - SAMPLE_SRV_ADDR=${SAMPLE_SRV_ADDR}
+      - DIAGNOSTIC_SRV_ADDR=${DIAGNOSTIC_SRV_ADDR}
     volumes:
       - delong_dataset:/data/delong_dataset
       - /var/run/docker.sock:/var/run/docker.sock
@@ -61,6 +77,8 @@ services:
       mysql:
         condition: service_healthy
       ipfs:
+        condition: service_healthy
+      anvil:
         condition: service_healthy
       delong-datapipe:
         condition: service_healthy
@@ -90,18 +108,18 @@ services:
     env_file:
       - .env
     environment:
-      - DSTACK_CLIENT_TYPE=dstack
-      - IPFS_ADDR=/dns/ipfs/tcp/5001
+      - DSTACK_CLIENT_TYPE=${DSTACK_CLIENT_TYPE}
+      - IPFS_ADDR=${IPFS_ADDR}
       - ETH_HTTP_URL=${ETH_HTTP_URL}
       - ETH_WS_URL=${ETH_WS_URL}
-      - CHAIN_ID=11155111
-      - MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
-      - DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
+      - CHAIN_ID=${CHAIN_ID}
+      - MYSQL_DSN=${MYSQL_DSN}
+      - DSTACK_SIMULATOR_ENDPOINT=${DSTACK_SIMULATOR_ENDPOINT}
       - OFFICIAL_ACCOUNT_PRIVATE_KEY=${OFFICIAL_ACCOUNT_PRIVATE_KEY}
-      - USE_JWT=false
-      - JWT_SECRET=not_required
-      - SAMPLE_SRV_ADDR=http://delong-datapipe:8018
-      - DIAGNOSTIC_SRV_ADDR=http://localhost:8008
+      - USE_JWT=${USE_JWT}
+      - JWT_SECRET=${JWT_SECRET}
+      - SAMPLE_SRV_ADDR=${SAMPLE_SRV_ADDR}
+      - DIAGNOSTIC_SRV_ADDR=${DIAGNOSTIC_SRV_ADDR}
       - TEST_BASE_URL=http://delong:8080/api
       - TEST_WS_URL=ws://delong:8080/ws
     volumes:
@@ -117,14 +135,14 @@ services:
         condition: service_healthy
       delong-datapipe:
         condition: service_healthy
+      anvil:
+        condition: service_healthy
       dstack-simulator:
         condition: service_started
       delong:
         condition: service_healthy
 
 volumes:
-  mysql_data:
-  ipfs_data:
   simulator_sockets:
   delong_dataset:
   go_mod_cache:

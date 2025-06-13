@@ -304,24 +304,6 @@ func (r *StaticDatasetResource) generateSampleCSV(ctx context.Context, originalF
 	return csvBuffer.String(), nil
 }
 
-// addStaticPrefix adds the static dataset prefix to distinguish from dynamic datasets
-func addStaticPrefix(name string) string {
-	return consts.StaticDatasetPrefix + name
-}
-
-// removeStaticPrefix removes the static dataset prefix for display purposes
-func removeStaticPrefix(name string) string {
-	if strings.HasPrefix(name, consts.StaticDatasetPrefix) {
-		return name[len(consts.StaticDatasetPrefix):]
-	}
-	return name
-}
-
-// isStaticDataset checks if a dataset name has the static prefix
-func isStaticDataset(name string) bool {
-	return strings.HasPrefix(name, consts.StaticDatasetPrefix)
-}
-
 func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
 	req := types.StcDatasetCreateReq{}
 	if err := c.ShouldBind(&req); err != nil {
@@ -500,6 +482,28 @@ func (r *StaticDatasetResource) TakeHandler(c *gin.Context) {
 	}
 
 	responser.ResponseData(c, asset)
+}
+
+func (r *StaticDatasetResource) UpdateHandler(c *gin.Context) {
+	var id uint
+	if err := parseUintParam(c.Param("id"), &id); err != nil {
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
+		return
+	}
+
+	req := types.StcDatasetUpdateReq{}
+	if err := c.ShouldBind(&req); err != nil {
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
+		return
+	}
+
+	dataset, err := models.UpdateStcDataset(r.MysqlDb, id, req.Name, req.Desc)
+	if err != nil {
+		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
+		return
+	}
+
+	responser.ResponseData(c, dataset)
 }
 
 func (r *StaticDatasetResource) SampleHandler(c *gin.Context) {

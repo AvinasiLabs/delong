@@ -224,7 +224,7 @@ func generateRandomCID() string {
 
 	// Encode to base58 and add "Qm" prefix to make it look like a real CID
 	encoded := base58.Encode(randomBytes)
-	return "Qm" + encoded[:44] // Trim to typical CID length
+	return "Qm" + encoded // Use the full encoded string
 }
 
 func vote(t *testing.T, cid string, isApproved bool) *ethtypes.Transaction {

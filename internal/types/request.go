@@ -49,6 +49,6 @@ type StcDatasetCreateReq struct {
 }
 
 type StcDatasetUpdateReq struct {
-	Desc   string `json:"desc"`
-	Author string `json:"author"`
+	Name string `json:"name"`
+	Desc string `json:"desc"`
 }

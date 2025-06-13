@@ -580,3 +580,112 @@ func TestStcDatasetSampleGeneration(t *testing.T) {
 		}
 	}
 }
+
+func TestStcDatasetUpdate(t *testing.T) {
+	// First create a dataset to update
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	originalDatasetName := generateRandomDatasetName("test-update")
+	originalDesc := "Original description for update test"
+
+	_ = writer.WriteField("name", originalDatasetName)
+	_ = writer.WriteField("desc", originalDesc)
+	_ = writer.WriteField("author", "Update Test Author")
+	_ = writer.WriteField("author_wallet", TEST_AUTHOR_WALLET)
+
+	csvContent := generateRandomCSV()
+
+	part, err := writer.CreateFormFile("file", "update_test.csv")
+	if err != nil {
+		t.Fatalf("failed to create form file: %v", err)
+	}
+	_, err = part.Write([]byte(csvContent))
+	if err != nil {
+		t.Fatalf("failed to write file content: %v", err)
+	}
+	writer.Close()
+
+	// Create the dataset
+	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
+
+	// Now test updating the dataset
+	updatedName := generateRandomDatasetName("updated-test")
+	updatedDesc := "Updated description for integration test"
+
+	updateReq := map[string]string{
+		"name": updatedName,
+		"desc": updatedDesc,
+	}
+
+	updateBody, err := json.Marshal(updateReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal update request: %v", err)
+	}
+
+	// Create PUT request
+	updateResp := requestAndAssertSuccess(t, http.MethodPut, "/static-datasets/"+strconv.Itoa(int(datasetId)), bytes.NewReader(updateBody), "application/json")
+	if err != nil {
+		t.Fatalf("Failed to send PUT request: %v", err)
+	}
+
+	// Verify the updated dataset
+	updateDatasetBytes, err := json.Marshal(updateResp.Data)
+	if err != nil {
+		t.Fatalf("Failed to marshal updated dataset data: %v", err)
+	}
+
+	var updatedDataset models.StaticDataset
+	err = json.Unmarshal(updateDatasetBytes, &updatedDataset)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal updated dataset: %v", err)
+	}
+
+	// Verify that the update was successful
+	if updatedDataset.ID != uint64(datasetId) {
+		t.Errorf("Expected ID %d, got %d", datasetId, updatedDataset.ID)
+	}
+
+	if updatedDataset.Name != updatedName {
+		t.Errorf("Expected Name '%s', got '%s'", updatedName, updatedDataset.Name)
+	}
+
+	if updatedDataset.Desc != updatedDesc {
+		t.Errorf("Expected description '%s', got '%s'", updatedDesc, updatedDataset.Desc)
+	}
+
+	// Verify that other fields remain unchanged
+	if updatedDataset.Author != "Update Test Author" {
+		t.Errorf("Expected author to remain 'Update Test Author', got '%s'", updatedDataset.Author)
+	}
+
+	if updatedDataset.AuthorWallet != TEST_AUTHOR_WALLET {
+		t.Errorf("Expected author wallet to remain '%s', got '%s'", TEST_AUTHOR_WALLET, updatedDataset.AuthorWallet)
+	}
+
+	// Verify by fetching the dataset again
+	getResp := requestAndAssertSuccess(t, http.MethodGet, "/static-datasets/"+strconv.Itoa(int(datasetId)), nil, "")
+
+	var fetchedDataset models.StaticDataset
+	getDatasetBytes, err := json.Marshal(getResp.Data)
+	if err != nil {
+		t.Fatalf("Failed to marshal fetched dataset data: %v", err)
+	}
+
+	err = json.Unmarshal(getDatasetBytes, &fetchedDataset)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal fetched dataset: %v", err)
+	}
+
+	// Final verification that the changes persisted
+	if fetchedDataset.Name != updatedName {
+		t.Errorf("Expected persisted name '%s', got '%s'", updatedName, fetchedDataset.Name)
+	}
+
+	if fetchedDataset.Desc != updatedDesc {
+		t.Errorf("Expected persisted description '%s', got '%s'", updatedDesc, fetchedDataset.Desc)
+	}
+
+	t.Logf("Successfully updated dataset ID %d: name '%s' -> '%s', desc '%s' -> '%s'",
+		datasetId, originalDatasetName, updatedName, originalDesc, updatedDesc)
+}

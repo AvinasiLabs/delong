@@ -122,27 +122,22 @@ func GetStcDatasetByName(db *gorm.DB, name string) (*StaticDataset, error) {
 	return &dataset, err
 }
 
-type UpdateStcDatasetReq struct {
-	Description string `json:"description"`
-	Author      string `json:"author"`
+func UpdateStcDataset(db *gorm.DB, id uint, name, desc string) (*StaticDataset, error) {
+	updates := map[string]any{
+		"name": name,
+		"desc": desc,
+	}
+	err := db.Model(&StaticDataset{}).
+		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
+		Where("id = ?", id).Updates(updates).Error
+	if err != nil {
+		return nil, err
+	}
+
+	dataset := StaticDataset{}
+	err = db.First(&dataset, id).Error
+	return &dataset, err
 }
-
-// func UpdateStcDataset(db *gorm.DB, id uint, req UpdateStcDatasetReq) (*StaticDataset, error) {
-// 	updates := map[string]any{
-// 		"description": req.Description,
-// 		"author":      req.Author,
-// 	}
-// 	err := db.Model(&StaticDataset{}).
-// 		Joins(StcDatasetJoinConfirmedTx, TX_STATUS_CONFIRMED, ENTITY_TYPE_STATIC_DATASET).
-// 		Where("id = ?", id).Updates(updates).Error
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	asset := StaticDataset{}
-// 	err = db.First(&asset, id).Error
-// 	return &asset, err
-// }
 
 // func DeleteStcDataset(db *gorm.DB, id uint) error {
 // 	return db.Delete(&StaticDataset{}, id).Error
