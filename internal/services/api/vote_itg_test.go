@@ -32,11 +32,13 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-var TEST_ALGO_CID = generateRandomCID()
+func TestVoteCreateAndList(t *testing.T) {
+	// Generate unique CID for this test to avoid conflicts
+	testAlgoCid := generateRandomCID()
 
-func TestVoteCreate(t *testing.T) {
-	tx := vote(t, TEST_ALGO_CID, true)
-	msg := waitForWsConfirmation(t, tx.Hash().Hex(), 20*time.Second)
+	// Step 1: Create a vote
+	tx := vote(t, testAlgoCid, true)
+	msg := waitForWsConfirmation(t, tx.Hash().Hex(), 1*time.Minute)
 
 	var wsResp responser.ResponseRaw
 	if err := json.Unmarshal(msg, &wsResp); err != nil {
@@ -51,10 +53,11 @@ func TestVoteCreate(t *testing.T) {
 	if transaction.Status != models.TX_STATUS_CONFIRMED {
 		t.Errorf("expected tx status CONFIRMED, got %v", transaction.Status)
 	}
-}
 
-func TestVoteList(t *testing.T) {
-	reqUrl := TEST_BASE_URL + "/votes?algo_cid=" + TEST_ALGO_CID
+	t.Logf("Vote created successfully for CID: %s", testAlgoCid)
+
+	// Step 2: List votes for the algorithm
+	reqUrl := TEST_BASE_URL + "/votes?algo_cid=" + testAlgoCid
 
 	resp, err := http.Get(reqUrl)
 	if err != nil {
@@ -76,7 +79,27 @@ func TestVoteList(t *testing.T) {
 	if err := json.Unmarshal(apiResp.Data, &votes); err != nil {
 		t.Fatalf("Failed to decode vote list: %v", err)
 	}
-	t.Logf("Found %d votes for algoCid=%v", len(votes), TEST_ALGO_CID)
+
+	// Verify we have at least one vote (the one we just created)
+	if len(votes) == 0 {
+		t.Fatalf("Expected at least 1 vote for algoCid=%v, got %d", testAlgoCid, len(votes))
+	}
+
+	t.Logf("Found %d votes for algoCid=%v", len(votes), testAlgoCid)
+
+	// Optional: Verify the vote details
+	foundOurVote := false
+	for _, vote := range votes {
+		if vote.AlgoCid == testAlgoCid {
+			foundOurVote = true
+			t.Logf("Vote details - AlgoCid: %s, IsApproved: %v", vote.AlgoCid, vote.Approve)
+			break
+		}
+	}
+
+	if !foundOurVote {
+		t.Errorf("Did not find our vote with AlgoCid=%s in the returned list", testAlgoCid)
+	}
 }
 
 func TestVoteSetVotingDuration(t *testing.T) {
