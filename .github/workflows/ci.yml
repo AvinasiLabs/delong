@@ -61,9 +61,18 @@ jobs:
       - name: Create environment file
         run: |
           cat > deploy/docker/.env << EOF
-          ETH_HTTP_URL=${{ secrets.ETH_HTTP_URL }}
-          ETH_WS_URL=${{ secrets.ETH_WS_URL }}
-          OFFICIAL_ACCOUNT_PRIVATE_KEY=${{ secrets.OFFICIAL_ACCOUNT_PRIVATE_KEY }}
+          DSTACK_CLIENT_TYPE=dstack
+          IPFS_ADDR=/dns/ipfs/tcp/5001
+          ETH_HTTP_URL=http://anvil:8545
+          ETH_WS_URL=ws://anvil:8545
+          CHAIN_ID=31337
+          MYSQL_DSN=root:delong_test_2025@tcp(mysql:3306)/delong?charset=utf8mb4&parseTime=True&loc=Local
+          DSTACK_SIMULATOR_ENDPOINT=/app/sockets/dstack.sock
+          OFFICIAL_ACCOUNT_PRIVATE_KEY=ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+          USE_JWT=false
+          JWT_SECRET=not_required
+          SAMPLE_SRV_ADDR=http://delong-datapipe:8018
+          DIAGNOSTIC_SRV_ADDR=http://host.docker.internal:8008
           EOF
 
       - name: Build and run integration tests
