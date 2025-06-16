@@ -85,7 +85,7 @@ func extractRepoName(link string) (string, error) {
 	return parts[0] + "/" + parts[1], nil
 }
 
-func isAdmin(c *gin.Context) (bool, error) {
+func checkAdmin(c *gin.Context) (bool, error) {
 	enable, keyExist := GetAuthEnable(c)
 	if !keyExist {
 		return false, fmt.Errorf("failed to get key of auth_enable")

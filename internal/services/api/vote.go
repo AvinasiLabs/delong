@@ -41,7 +41,7 @@ func (r *VoteResource) SetVotingDuration(c *gin.Context) {
 		return
 	}
 
-	sure, err := isAdmin(c)
+	sure, err := checkAdmin(c)
 	if err != nil {
 		log.Printf("Failed to check admin status: %v", err)
 		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)

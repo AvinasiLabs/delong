@@ -305,6 +305,18 @@ func (r *StaticDatasetResource) generateSampleCSV(ctx context.Context, originalF
 }
 
 func (r *StaticDatasetResource) CreateHandler(c *gin.Context) {
+	isAdmin, err := checkAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !isAdmin {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	req := types.StcDatasetCreateReq{}
 	if err := c.ShouldBind(&req); err != nil {
 		log.Printf("Failed to bind request: %v", err)
@@ -485,6 +497,18 @@ func (r *StaticDatasetResource) TakeHandler(c *gin.Context) {
 }
 
 func (r *StaticDatasetResource) UpdateHandler(c *gin.Context) {
+	isAdmin, err := checkAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !isAdmin {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	var id uint
 	if err := parseUintParam(c.Param("id"), &id); err != nil {
 		responser.ResponseError(c, bizcode.BAD_REQUEST)
@@ -511,6 +535,41 @@ func (r *StaticDatasetResource) UpdateHandler(c *gin.Context) {
 	}
 
 	responser.ResponseData(c, dataset)
+}
+
+func (r *StaticDatasetResource) DeleteHandler(c *gin.Context) {
+	isAdmin, err := checkAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !isAdmin {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
+	var id uint
+	if err := parseUintParam(c.Param("id"), &id); err != nil {
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
+		return
+	}
+
+	err = models.DeleteStcDataset(r.MysqlDb, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Printf("Dataset with ID %d not found", id)
+			responser.ResponseError(c, bizcode.NOT_FOUND)
+			return
+		}
+
+		log.Printf("Failed to delete dataset: %v", err)
+		responser.ResponseError(c, bizcode.MYSQL_WRITE_FAIL)
+		return
+	}
+
+	responser.ResponseOk(c)
 }
 
 func (r *StaticDatasetResource) SampleHandler(c *gin.Context) {

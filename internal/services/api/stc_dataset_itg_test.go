@@ -707,3 +707,163 @@ func TestStcDatasetUpdate(t *testing.T) {
 	t.Logf("Successfully updated dataset ID %d: name '%s' -> '%s', desc '%s' -> '%s'",
 		datasetId, originalDatasetName, updatedName, originalDesc, updatedDesc)
 }
+
+func TestStcDatasetDelete(t *testing.T) {
+	// First create a dataset to delete
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	datasetName := generateRandomDatasetName("test-delete")
+	desc := "Test dataset for deletion"
+
+	_ = writer.WriteField("name", datasetName)
+	_ = writer.WriteField("desc", desc)
+	_ = writer.WriteField("author", "Delete Test Author")
+	_ = writer.WriteField("author_wallet", TEST_AUTHOR_WALLET)
+
+	csvContent := generateRandomCSV()
+
+	part, err := writer.CreateFormFile("file", "delete_test.csv")
+	if err != nil {
+		t.Fatalf("failed to create form file: %v", err)
+	}
+	_, err = part.Write([]byte(csvContent))
+	if err != nil {
+		t.Fatalf("failed to write file content: %v", err)
+	}
+	writer.Close()
+
+	// Create the dataset
+	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
+
+	// Verify the dataset exists before deletion
+	getResp := requestAndAssertSuccess(t, http.MethodGet, "/static-datasets/"+strconv.Itoa(int(datasetId)), nil, "")
+
+	var originalDataset models.StaticDataset
+	getDatasetBytes, err := json.Marshal(getResp.Data)
+	if err != nil {
+		t.Fatalf("Failed to marshal dataset data: %v", err)
+	}
+
+	err = json.Unmarshal(getDatasetBytes, &originalDataset)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset: %v", err)
+	}
+
+	if originalDataset.ID != uint64(datasetId) {
+		t.Errorf("Expected ID %d, got %d", datasetId, originalDataset.ID)
+	}
+
+	t.Logf("Dataset created with ID %d, proceeding with deletion", datasetId)
+
+	// Now delete the dataset
+	deleteResp := requestAndAssertSuccess(t, http.MethodDelete, "/static-datasets/"+strconv.Itoa(int(datasetId)), nil, "")
+
+	// Verify the delete response
+	if deleteResp.Code != bizcode.SUCCESS {
+		t.Errorf("Expected success code, got %v", deleteResp.Code)
+	}
+
+	t.Logf("Dataset ID %d deleted successfully", datasetId)
+
+	// Verify the dataset no longer exists
+	url := TEST_BASE_URL + "/static-datasets/" + strconv.Itoa(int(datasetId))
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("failed to create GET request: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Should return 404 or appropriate error for non-existent dataset
+	if resp.StatusCode == http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		apiResp := &responser.Response{}
+		json.Unmarshal(respBody, apiResp)
+
+		if apiResp.Code == bizcode.SUCCESS {
+			t.Errorf("Expected dataset to be deleted, but GET request still succeeded")
+		}
+	}
+
+	t.Logf("Verified dataset ID %d no longer exists after deletion", datasetId)
+}
+
+func TestStcDatasetDeleteNonExistent(t *testing.T) {
+	// Try to delete a non-existent dataset
+	nonExistentId := 999999
+
+	url := TEST_BASE_URL + "/static-datasets/" + strconv.Itoa(nonExistentId)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		t.Fatalf("failed to create DELETE request: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	// Parse the response
+	apiResp := &responser.Response{}
+	if err := json.Unmarshal(respBody, apiResp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Should return an error for non-existent dataset
+	if resp.StatusCode == http.StatusOK && apiResp.Code == bizcode.SUCCESS {
+		t.Errorf("Expected error when deleting non-existent dataset ID %d, but got success", nonExistentId)
+	}
+
+	t.Logf("Correctly handled deletion of non-existent dataset ID %d", nonExistentId)
+}
+
+func TestStcDatasetDeleteInvalidId(t *testing.T) {
+	// Try to delete with invalid ID format
+	invalidId := "invalid"
+
+	url := TEST_BASE_URL + "/static-datasets/" + invalidId
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		t.Fatalf("failed to create DELETE request: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	// Parse the response
+	apiResp := &responser.Response{}
+	if err := json.Unmarshal(respBody, apiResp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+
+	// Should return BAD_REQUEST for invalid ID format
+	if resp.StatusCode == http.StatusOK && apiResp.Code == bizcode.SUCCESS {
+		t.Errorf("Expected BAD_REQUEST error for invalid ID format '%s', but got success", invalidId)
+	}
+
+	// Verify it's the expected error code
+	if apiResp.Code != bizcode.BAD_REQUEST {
+		t.Logf("Expected BAD_REQUEST (%v), got %v for invalid ID format", bizcode.BAD_REQUEST, apiResp.Code)
+	}
+
+	t.Logf("Correctly handled deletion with invalid ID format '%s'", invalidId)
+}

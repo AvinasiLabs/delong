@@ -140,6 +140,14 @@ func UpdateStcDataset(db *gorm.DB, id uint, uiName, name, desc string) (*StaticD
 	return &dataset, err
 }
 
-// func DeleteStcDataset(db *gorm.DB, id uint) error {
-// 	return db.Delete(&StaticDataset{}, id).Error
-// }
+func DeleteStcDataset(db *gorm.DB, id uint) error {
+	result := db.Delete(&StaticDataset{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}

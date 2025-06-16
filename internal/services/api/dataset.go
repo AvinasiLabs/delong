@@ -16,23 +16,23 @@ import (
 type DatasetResource struct{ ApiServiceOptions }
 
 func (r *DatasetResource) CreateHandler(c *gin.Context) {
-	req := types.DatasetCreateReq{}
-	err := c.ShouldBind(&req)
-	if err != nil {
-		log.Printf("Failed to bind request: %v", err)
-		responser.ResponseError(c, bizcode.BAD_REQUEST)
-		return
-	}
-
-	sure, err := isAdmin(c)
+	isAdmin, err := checkAdmin(c)
 	if err != nil {
 		log.Printf("Failed to check admin status: %v", err)
 		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
 		return
 	}
-	if !sure {
+	if !isAdmin {
 		log.Printf("Not admin")
 		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
+	req := types.DatasetCreateReq{}
+	err = c.ShouldBind(&req)
+	if err != nil {
+		log.Printf("Failed to bind request: %v", err)
+		responser.ResponseError(c, bizcode.BAD_REQUEST)
 		return
 	}
 
@@ -81,6 +81,18 @@ func (r *DatasetResource) TakeHandler(c *gin.Context) {
 }
 
 func (r *DatasetResource) UpdateHandler(c *gin.Context) {
+	isAdmin, err := checkAdmin(c)
+	if err != nil {
+		log.Printf("Failed to check admin status: %v", err)
+		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
+		return
+	}
+	if !isAdmin {
+		log.Printf("Not admin")
+		responser.ResponseError(c, bizcode.FORBIDDEN)
+		return
+	}
+
 	var id uint
 	if err := parseUintParam(c.Param("id"), &id); err != nil {
 		responser.ResponseError(c, bizcode.BAD_REQUEST)

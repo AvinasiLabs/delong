@@ -25,7 +25,7 @@ func (r *CommitteeResource) CreateHandler(c *gin.Context) {
 	}
 	memberWallet := common.HexToAddress(req.MemberWallet)
 
-	sure, err := isAdmin(c)
+	sure, err := checkAdmin(c)
 	if err != nil {
 		log.Printf("Failed to check admin status: %v", err)
 		responser.ResponseError(c, bizcode.INTERNAL_SERVER_ERROR)
