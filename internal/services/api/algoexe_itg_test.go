@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"strconv"
 	"testing"
-	"time"
 )
 
 const (
@@ -49,7 +48,7 @@ func TestAlgoExeCreateAndTake(t *testing.T) {
 		t.Fatalf("Expected txHash string, got %T", apiResp.Data)
 	}
 
-	msg := waitForWsConfirmation(t, txHash, 20*time.Second)
+	msg := waitForWsConfirmation(t, txHash)
 
 	var wsResp responser.ResponseRaw
 	_ = json.Unmarshal(msg, &wsResp)

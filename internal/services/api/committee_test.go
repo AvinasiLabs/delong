@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
-	"time"
 )
 
 const TEST_MEMEBR_WALLET = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720"
@@ -27,7 +26,7 @@ func setCommitteeMember(t *testing.T, wallet string, isApproved bool) {
 	}
 	jsonBody, _ := json.Marshal(body)
 
-	_ = assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json", 20*time.Second)
+	_ = assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json")
 }
 
 func TestCommitteeMemberCreate(t *testing.T) {
@@ -80,7 +79,7 @@ func TestCommitteeMemberTake(t *testing.T) {
 		t.Fatalf("Failed to marshal body: %v", err)
 	}
 
-	msg := assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json", 1*time.Minute)
+	msg := assertPostSuccessAndWaitConfirm(t, "/committee", bytes.NewBuffer(jsonBody), "application/json")
 	t.Logf("Received msg: %v", string(msg))
 
 	wsResp := responser.ResponseRaw{}

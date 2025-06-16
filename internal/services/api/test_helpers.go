@@ -27,7 +27,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func waitForWsConfirmation(t *testing.T, txHash string, timeout time.Duration) []byte {
+func waitForWsConfirmation(t *testing.T, txHash string) []byte {
 	t.Helper()
 
 	wsURL := TEST_WS_URL + "?task_id=" + txHash
@@ -38,7 +38,7 @@ func waitForWsConfirmation(t *testing.T, txHash string, timeout time.Duration) [
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	ch := make(chan []byte, 1)
@@ -129,7 +129,7 @@ func requestAndAssertSuccess(t *testing.T, method string, endpoint string, body 
 	return assertApiSuccess(t, resp)
 }
 
-func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reader, contentType string, timeout time.Duration) []byte {
+func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Reader, contentType string) []byte {
 	t.Helper()
 
 	respBody := postAndAssertSuccess(t, endpoint, body, contentType)
@@ -138,10 +138,10 @@ func assertPostSuccessAndWaitConfirm(t *testing.T, endpoint string, body io.Read
 		t.Fatalf("Unexpected data format: %T", respBody.Data)
 	}
 
-	return waitForWsConfirmation(t, txHash, timeout)
+	return waitForWsConfirmation(t, txHash)
 }
 
-func requestAssertSuccessAndGetEntityId(t *testing.T, method string, endpoint string, body io.Reader, contentType string, timeout time.Duration) uint {
+func requestAssertSuccessAndGetEntityId(t *testing.T, method string, endpoint string, body io.Reader, contentType string) uint {
 	t.Helper()
 	respBody := requestAndAssertSuccess(t, method, endpoint, body, contentType)
 	txHash, ok := respBody.Data.(string)
@@ -149,7 +149,7 @@ func requestAssertSuccessAndGetEntityId(t *testing.T, method string, endpoint st
 		t.Fatalf("Unexpected data format: %T", respBody.Data)
 	}
 
-	msg := waitForWsConfirmation(t, txHash, timeout)
+	msg := waitForWsConfirmation(t, txHash)
 
 	wsResp := responser.ResponseRaw{}
 	err := json.Unmarshal(msg, &wsResp)

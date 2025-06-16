@@ -93,7 +93,7 @@ func TestStcDatasetCreate(t *testing.T) {
 	}
 	writer.Close()
 
-	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
+	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType())
 
 	wsResp := responser.ResponseRaw{}
 	err = json.Unmarshal(msg, &wsResp)
@@ -241,7 +241,7 @@ func TestStcDatasetTake(t *testing.T) {
 	}
 	writer.Close()
 
-	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType(), 20*time.Second)
+	msg := assertPostSuccessAndWaitConfirm(t, "/static-datasets", body, writer.FormDataContentType())
 
 	wsResp := responser.ResponseRaw{}
 	err = json.Unmarshal(msg, &wsResp)
@@ -362,7 +362,7 @@ func TestStcDatasetCreateDuplicateFile(t *testing.T) {
 
 	// Wait for first dataset to be confirmed
 	txHash1, _ := apiResp1.Data.(string)
-	_ = waitForWsConfirmation(t, txHash1, 15*time.Second)
+	_ = waitForWsConfirmation(t, txHash1)
 
 	// Try to create second dataset with same file content but different name
 	body2 := &bytes.Buffer{}
@@ -464,7 +464,7 @@ func TestStcDatasetSampleGeneration(t *testing.T) {
 	t.Logf("Got transaction hash: %s", txHash)
 
 	// Wait for WebSocket confirmation
-	msg := waitForWsConfirmation(t, txHash, 15*time.Second)
+	msg := waitForWsConfirmation(t, txHash)
 	t.Logf("Received WebSocket message: %s", string(msg))
 
 	wsResp := responser.ResponseRaw{}
@@ -607,7 +607,7 @@ func TestStcDatasetUpdate(t *testing.T) {
 	writer.Close()
 
 	// Create the dataset
-	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
+	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType())
 
 	// Now test updating the dataset
 	updatedName := generateRandomDatasetName("updated-test")
@@ -734,7 +734,7 @@ func TestStcDatasetDelete(t *testing.T) {
 	writer.Close()
 
 	// Create the dataset
-	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType(), 1*time.Minute)
+	datasetId := requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/static-datasets", body, writer.FormDataContentType())
 
 	// Verify the dataset exists before deletion
 	getResp := requestAndAssertSuccess(t, http.MethodGet, "/static-datasets/"+strconv.Itoa(int(datasetId)), nil, "")
