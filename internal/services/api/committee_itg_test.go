@@ -160,39 +160,7 @@ func TestIsCommitteeMemberUnapproved(t *testing.T) {
 	}
 	createBody, _ := json.Marshal(createReq)
 
-	createResp, err := http.Post(TEST_BASE_URL+"/committee", "application/json", bytes.NewBuffer(createBody))
-	if err != nil {
-		t.Fatalf("Failed to create unapproved committee member: %v", err)
-	}
-	defer createResp.Body.Close()
-
-	// Check if creation was successful
-	createRespBody, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create unapproved committee member response: status=%d, body=%s", createResp.StatusCode, string(createRespBody))
-
-	if createResp.StatusCode != http.StatusOK {
-		t.Fatalf("Failed to create unapproved committee member, status: %d", createResp.StatusCode)
-	}
-
-	createApiResp := responser.Response{}
-	err = json.Unmarshal(createRespBody, &createApiResp)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal create response: %v", err)
-	}
-
-	if createApiResp.Code != bizcode.SUCCESS {
-		t.Fatalf("Failed to create unapproved committee member, code: %v", createApiResp.Code)
-	}
-
-	// Get transaction hash for reference
-	txHash, ok := createApiResp.Data.(string)
-	if !ok {
-		t.Fatalf("Unexpected data format in create response: %T", createApiResp.Data)
-	}
-	t.Logf("Created unapproved committee member with tx hash: %s", txHash)
-
-	// Wait a bit for the transaction to be processed
-	time.Sleep(2 * time.Second)
+	_ = requestAssertSuccessAndGetEntityId(t, http.MethodPost, "/committee", bytes.NewBuffer(createBody), "application/json")
 
 	// Now test IsCommitteeMember for unapproved member using GET with query parameter
 	u, _ := url.Parse(TEST_BASE_URL + "/committee/is-member")

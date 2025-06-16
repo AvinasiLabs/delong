@@ -38,7 +38,7 @@ func TestVoteCreateAndList(t *testing.T) {
 
 	// Step 1: Create a vote
 	tx := vote(t, testAlgoCid, true)
-	msg := waitForWsConfirmation(t, tx.Hash().Hex(), 1*time.Minute)
+	msg := waitForWsConfirmation(t, tx.Hash().Hex())
 
 	var wsResp responser.ResponseRaw
 	if err := json.Unmarshal(msg, &wsResp); err != nil {
