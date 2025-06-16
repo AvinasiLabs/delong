@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	defaultSampleSize = 5
+	defaultSampleSize = 1000
 )
 
 type StaticDatasetResource struct{ ApiServiceOptions }
