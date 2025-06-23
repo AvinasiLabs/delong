@@ -218,8 +218,10 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 			return err
 		}
 		c.contractAddr.DataContribution = addr
+		log.Printf("DataContribution deployed at %s", addr.Hex())
 	} else {
 		c.contractAddr.DataContribution = common.HexToAddress(addrStr)
+		log.Printf("DataContribution loaded from address %s", addrStr)
 	}
 
 	// AlgorithmReview contract
@@ -240,8 +242,10 @@ func (c *ContractCaller) EnsureContractsDeployed(ctx context.Context, db *gorm.D
 			return err
 		}
 		c.contractAddr.AlgorithmReview = addr
+		log.Printf("AlgorithmReview deployed at %s", addr.Hex())
 	} else {
 		c.contractAddr.AlgorithmReview = common.HexToAddress(addrStr)
+		log.Printf("AlgorithmReview loaded from address %s", addrStr)
 	}
 
 	return nil
