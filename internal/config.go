@@ -77,6 +77,6 @@ func (c *Config) String() string {
 	builder.WriteString(fmt.Sprintf("\tMySQL DSN: %s\n", c.MysqlDsn))
 	builder.WriteString(fmt.Sprintf("\tOfficial Account Private Key: %s\n", c.OfficialAccountPrivateKey))
 	builder.WriteString(fmt.Sprintf("\tUse Jwt: %v\n", c.UseJwt))
-	builder.WriteString(fmt.Sprintf("\tJwt Secret: [HIDDEN]\n"))
+	builder.WriteString(fmt.Sprintf("\tJwt Secret: %s\n", c.JwtSecret))
 	return builder.String()
 }

@@ -67,7 +67,7 @@ services:
       - DIAGNOSTIC_SRV_ADDR=${DIAGNOSTIC_SRV_ADDR}
     volumes:
       - delong_dataset:/data/delong_dataset
-      - /var/run/docker.sock:/var/run/docker.sock
+      - $XDG_RUNTIME_DIR/podman/podman.sock:/var/run/docker.sock
       - simulator_sockets:/app/sockets
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -89,7 +89,6 @@ services:
       timeout: 10s
       retries: 3
       interval: 30s
-    restart: no
 
   delong-datapipe:
     image: lilhammer/delong-pipeline:latest
@@ -125,7 +124,7 @@ services:
     volumes:
       - ../../:/app
       - go_mod_cache:/go/pkg/mod
-      - /var/run/docker.sock:/var/run/docker.sock
+      - $XDG_RUNTIME_DIR/podman/podman.sock:/var/run/docker.sock
       - simulator_sockets:/app/sockets
     working_dir: /app
     depends_on:
