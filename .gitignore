@@ -30,3 +30,5 @@ assets/
 .idea/
 k8s/
 data/
+
+.DS_Store
